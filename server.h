@@ -8,15 +8,19 @@
 #include <stdlib.h>
 #include <fcntl.h>
 
+#include "common.h"
+
 class Server
 {
 public:
     Server();
     ~Server();
-    void start();
+    void startServer();
+    void closeServer();
 
 private:
     int sock;
+    int epfd;
     struct sockaddr_in serAddr;
     void init();
 };

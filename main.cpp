@@ -3,6 +3,6 @@
 int main()
 {
     Server serv;
-    serv.start();
+    serv.startServer();
     return 0;
 }
