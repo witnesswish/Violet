@@ -3,6 +3,9 @@
 
 #include <asm-generic/fcntl.h>
 #include <iostream>
+#include <sys/epoll.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define SERVER_WELCOME "Welcome you join to the chat room! Your chat ID is: Client #%d"
 #define BUFFER_SIZE 0xFFFF

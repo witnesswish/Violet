@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/epoll.h>
 
 #include "common.h"
 
