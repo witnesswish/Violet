@@ -10,14 +10,6 @@
 #define BUFFER_SIZE 0xFFFF
 #define EPOLL_SIZE 5000
 
-struct Msg
-{
-    int magic;
-    int type;
-    int plateform;
-    std::string content;
-};
-
 inline void addfd(int fd, int epfd, bool enable_et=true)
 {
     struct epoll_event ev;

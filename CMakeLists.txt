@@ -9,7 +9,8 @@ add_executable(Violet main.cpp
     mariadbhelper.h mariadbhelper.cpp
     server.h server.cpp
     unlogincenter.h unlogincenter.cpp
-    common.h)
+    common.h
+    protocol.h)
 
 include(GNUInstallDirs)
 install(TARGETS Violet

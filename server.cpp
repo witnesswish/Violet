@@ -42,6 +42,41 @@ void Server::init()
     addfd(sock, epfd);
 }
 
+void Server::sendMsg(int sock, uint16_t msgType, const std::string &content)
+{
+    Msg msg;
+    msg.header.magic = htonl(0x43484154); // "CHAT"
+    msg.header.version = htons(1);
+    msg.header.type = htons(msgType);
+    msg.header.length = htonl(content.size());
+    msg.header.timestamp = htonl(static_cast<uint32_t>(time(nullptr)));
+    msg.content.assign(content.begin(), content.end());
+    auto packet = msg.serialize();
+    if(send(sock, packet.data(), packet.size(), 0) < 0)
+    {
+        perror("send msg error");
+    }
+}
+
+std::optional<Msg> Server::recvMsg(int sock)
+{
+    VioletProtHeader header;
+    ssize_t len = recv(sock, &header, sizeof(header), MSG_PEEK);
+    if(len != sizeof(header))
+    {
+        return std::nullopt;
+    }
+    uint32_t contentLen = ntohl(header.length);
+    uint32_t totaLen = contentLen + sizeof(header);
+    std::vector<char> recvBuffer(totaLen);
+    len = recv(sock, recvBuffer.data(), recvBuffer.size(), 0);
+    if(len != static_cast<ssize_t>(recvBuffer.size()))
+    {
+        return std::nullopt;
+    }
+    return Msg::deserialize(recvBuffer.data(), recvBuffer.size());
+}
+
 void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
@@ -68,11 +103,19 @@ void Server::startServer()
                      << client << std::endl;
                 addfd(client, epfd);
                 //clients_list.push_back(clientfd);一些操作
-                char message[BUFFER_SIZE];
-                bzero(message, BUFFER_SIZE);
-                sprintf(message, SERVER_WELCOME, client);
-                int ret = send(client, message, BUFFER_SIZE, 0);
-                if(ret < 0) {
+                std::string welcome = "welcome, your id is #";
+                welcome += client;
+                welcome += ", enjoy yourself";
+                msg.header.magic = htonl(0x43484154);    //"CHAT"，暂时用这个，后续可能的话做私有化
+                msg.header.version = htons(1);
+                msg.header.type = htons(0);
+                msg.header.length = htons(welcome.size());
+                msg.header.timestamp = htonl(static_cast<uint32_t>(time(nullptr)));
+                msg.content.assign(welcome.begin(), welcome.end());
+                auto packet = msg.serialize();
+                int ret = send(client, packet.data(), BUFFER_SIZE, 0);
+                if(ret < 0)
+                {
                     perror("send welcome error");
                     closeServer();
                     exit(-1);
@@ -87,7 +130,10 @@ void Server::startServer()
                 int len = recv(fd, recv_buf, BUFFER_SIZE, 0);
                 std::cout<< "read: " << len << " bytes, content: " << recv_buf <<std::endl;
                 if(len == 0)
+                {
                     close(fd);
+                    std::cout<< "client #" << fd << " closed" <<std::endl;
+                }
             }
         }
     }

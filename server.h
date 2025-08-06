@@ -10,7 +10,12 @@
 #include <string.h>
 
 #include "common.h"
+#include "protocol.h"
 
+/**
+ * @brief The Server class
+ *
+ */
 class Server
 {
 public:
@@ -22,8 +27,11 @@ public:
 private:
     int sock;
     int epfd;
+    Msg msg;
     struct sockaddr_in serAddr;
     void init();
+    void sendMsg(int sock, uint16_t msgType, const std::string &content);
+    std::optional<Msg> recvMsg(int sock);
 };
 
 #endif // SERVER_H
