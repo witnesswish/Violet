@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <string.h>
+#include <optional>
 
 #include "common.h"
 #include "protocol.h"
