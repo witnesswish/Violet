@@ -4,6 +4,7 @@
 #include <vector>
 #include <arpa/inet.h>
 #include <iostream>
+#include <optional>
 
 #pragma pack(push, 1)
 struct VioletProtHeader {
