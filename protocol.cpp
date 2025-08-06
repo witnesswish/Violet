@@ -77,6 +77,7 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std
 
 std::optional<Msg> SRHelper::recvMsg(int fd) {
     VioletProtHeader header;
+    VioletProtNeck neck;
     ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
     if(len == 0)
     {
@@ -103,11 +104,12 @@ std::optional<Msg> SRHelper::recvMsg(int fd) {
         return std::nullopt;
     }
     uint32_t contentLen = ntohl(header.length);
-    uint32_t totaLen = contentLen + sizeof(header);
+    uint32_t totaLen = contentLen + sizeof(header) + sizeof(neck);
     std::vector<char> recvBuffer(totaLen);
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
     if(len != static_cast<ssize_t>(recvBuffer.size()))
     {
+        std::cout<< "recv the wrong len" <<std::endl;
         return std::nullopt;
     }
     //这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
