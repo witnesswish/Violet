@@ -60,7 +60,7 @@ public:
         memcpy(packet.data()+sizeof(VioletProtHeader), &neck, sizeof(neck));
         if(!content.empty())
         {
-            memcpy(packet.data()+sizeof(VioletProtHeader)+sizeof(VioletProtHeader), content.data(), content.size());
+            memcpy(packet.data()+sizeof(VioletProtHeader)+sizeof(VioletProtNeck), content.data(), content.size());
         }
         return packet;
     }

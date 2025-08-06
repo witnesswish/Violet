@@ -10,6 +10,7 @@ void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content) {
     msg.header.type = htons(msgType);
     msg.header.length = htonl(content.size());
     msg.header.timestamp = htonl(static_cast<uint32_t>(time(nullptr)));
+    msg.neck = {};
     msg.content.assign(content.begin(), content.end());
     auto packet = msg.serialize();
     if(send(fd, packet.data(), packet.size(), 0) < 0)
