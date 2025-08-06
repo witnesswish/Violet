@@ -9,6 +9,7 @@
 #include <sys/epoll.h>
 #include <string.h>
 #include <optional>
+#include <errno.h>
 
 #include "common.h"
 #include "protocol.h"

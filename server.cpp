@@ -56,6 +56,10 @@ void Server::sendMsg(int sock, uint16_t msgType, const std::string &content)
     {
         perror("send msg error");
     }
+    else
+    {
+        std::cout<< "send msg success" <<std::endl;
+    }
 }
 
 std::optional<Msg> Server::recvMsg(int sock)
@@ -104,22 +108,10 @@ void Server::startServer()
                 addfd(client, epfd);
                 //clients_list.push_back(clientfd);一些操作
                 std::string welcome = "welcome, your id is #";
-                welcome += client;
+                welcome += std::to_string(client);
                 welcome += ", enjoy yourself";
-                msg.header.magic = htonl(0x43484154);    //"CHAT"，暂时用这个，后续可能的话做私有化
-                msg.header.version = htons(1);
-                msg.header.type = htons(0);
-                msg.header.length = htons(welcome.size());
-                msg.header.timestamp = htonl(static_cast<uint32_t>(time(nullptr)));
-                msg.content.assign(welcome.begin(), welcome.end());
-                auto packet = msg.serialize();
-                int ret = send(client, packet.data(), BUFFER_SIZE, 0);
-                if(ret < 0)
-                {
-                    perror("send welcome error");
-                    closeServer();
-                    exit(-1);
-                }
+                std::cout<< "welcome: " << welcome <<std::endl;
+                sendMsg(client, 1, welcome);
             }
             else
             {
@@ -128,6 +120,11 @@ void Server::startServer()
                 bzero(recv_buf, BUFFER_SIZE);
                 std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
                 int len = recv(fd, recv_buf, BUFFER_SIZE, 0);
+                if(len < 0)
+                {
+                    perror("read error");
+                    std::cout<< errno <<std::endl;
+                }
                 std::cout<< "read: " << len << " bytes, content: " << recv_buf <<std::endl;
                 if(len == 0)
                 {
