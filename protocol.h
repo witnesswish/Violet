@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <optional>
+#include <string.h>
+#include <unistd.h>
 
 #pragma pack(push, 1)
 struct VioletProtHeader {
