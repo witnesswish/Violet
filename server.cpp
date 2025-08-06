@@ -7,7 +7,9 @@ Server::Server()
     serAddr.sin_port = htons(3434);
     serAddr.sin_addr.s_addr = INADDR_ANY;
 }
-Server::~Server(){}
+Server::~Server(){
+    closeServer();
+}
 
 void Server::init()
 {
@@ -42,45 +44,6 @@ void Server::init()
     addfd(sock, epfd);
 }
 
-void Server::sendMsg(int sock, uint16_t msgType, const std::string &content)
-{
-    Msg msg;
-    msg.header.magic = htonl(0x43484154); // "CHAT"
-    msg.header.version = htons(1);
-    msg.header.type = htons(msgType);
-    msg.header.length = htonl(content.size());
-    msg.header.timestamp = htonl(static_cast<uint32_t>(time(nullptr)));
-    msg.content.assign(content.begin(), content.end());
-    auto packet = msg.serialize();
-    if(send(sock, packet.data(), packet.size(), 0) < 0)
-    {
-        perror("send msg error");
-    }
-    else
-    {
-        std::cout<< "send msg success" <<std::endl;
-    }
-}
-
-std::optional<Msg> Server::recvMsg(int sock)
-{
-    VioletProtHeader header;
-    ssize_t len = recv(sock, &header, sizeof(header), MSG_PEEK);
-    if(len != sizeof(header))
-    {
-        return std::nullopt;
-    }
-    uint32_t contentLen = ntohl(header.length);
-    uint32_t totaLen = contentLen + sizeof(header);
-    std::vector<char> recvBuffer(totaLen);
-    len = recv(sock, recvBuffer.data(), recvBuffer.size(), 0);
-    if(len != static_cast<ssize_t>(recvBuffer.size()))
-    {
-        return std::nullopt;
-    }
-    return Msg::deserialize(recvBuffer.data(), recvBuffer.size());
-}
-
 void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
@@ -111,25 +74,19 @@ void Server::startServer()
                 welcome += std::to_string(client);
                 welcome += ", enjoy yourself";
                 std::cout<< "welcome: " << welcome <<std::endl;
-                sendMsg(client, 1, welcome);
+                sr.sendMsg(client, 0, welcome);
             }
             else
             {
-                //已经握过手，发送了欢迎消息
-                char recv_buf[BUFFER_SIZE];
-                bzero(recv_buf, BUFFER_SIZE);
                 std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
-                int len = recv(fd, recv_buf, BUFFER_SIZE, 0);
-                if(len < 0)
+                auto ret = sr.recvMsg(fd);
+                if(ret == std::nullopt)
                 {
-                    perror("read error");
-                    std::cout<< errno <<std::endl;
+                    std::cout<< "sr return null opt" <<std::endl;
                 }
-                std::cout<< "read: " << len << " bytes, content: " << recv_buf <<std::endl;
-                if(len == 0)
+                else
                 {
-                    close(fd);
-                    std::cout<< "client #" << fd << " closed" <<std::endl;
+                    std::cout<< ret->content.data() <<std::endl;
                 }
             }
         }

@@ -30,10 +30,9 @@ private:
     int sock;
     int epfd;
     Msg msg;
+    SRHelper sr;
     struct sockaddr_in serAddr;
     void init();
-    void sendMsg(int sock, uint16_t msgType, const std::string &content);
-    std::optional<Msg> recvMsg(int sock);
 };
 
 #endif // SERVER_H

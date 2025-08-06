@@ -10,7 +10,8 @@ add_executable(Violet main.cpp
     server.h server.cpp
     unlogincenter.h unlogincenter.cpp
     common.h
-    protocol.h)
+    protocol.h
+    protocol.cpp)
 
 include(GNUInstallDirs)
 install(TARGETS Violet
