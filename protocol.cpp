@@ -1,5 +1,8 @@
 #include "protocol.h"
 
+
+SRHelper::SRHelper() {}
+
 void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content) {
     Msg msg;
     msg.header.magic = htonl(0x43484154); // "CHAT"
