@@ -1,7 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <asm-generic/fcntl.h>
 #include <iostream>
 #include <sys/epoll.h>
 #include <fcntl.h>
