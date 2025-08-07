@@ -87,6 +87,7 @@ void Server::startServer()
                 else
                 {
                     std::cout<< ret->content.data() <<std::endl;
+                    std::cout<< ret->neck.unlogin <<std::endl;
                 }
             }
         }

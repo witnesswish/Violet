@@ -10,6 +10,7 @@
 #include <string.h>
 #include <optional>
 #include <errno.h>
+#include <list>
 
 #include "common.h"
 #include "protocol.h"
@@ -32,6 +33,7 @@ private:
     Msg msg;
     SRHelper sr;
     struct sockaddr_in serAddr;
+    std::list<int> onlineUnlogin;
     void init();
 };
 
