@@ -101,7 +101,7 @@ void Server::startServer()
                         }
                         if(command == std::string("nong"))
                         {
-                            unlogin.sendBordcast(fd, ret->content.data());
+                            unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
                         }
                         if(command == std::string("nonp"))
                         {
