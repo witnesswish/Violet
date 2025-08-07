@@ -26,3 +26,7 @@ void UnloginCenter::addNewUnlogin(int fd) {
     }
     onlineUnlogin.push_back(fd);
 }
+
+void UnloginCenter::removeUnlogin(int fd) {
+    onlineUnlogin.remove_if([=](int x){x = fd;});
+}

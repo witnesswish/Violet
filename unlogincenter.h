@@ -17,6 +17,7 @@ private:
 public:
     void sendBordcast(int, std::string);
     void addNewUnlogin(int fd);
+    void removeUnlogin(int fd);
 };
 
 #endif // UNLOGINCENTER_H

@@ -86,26 +86,39 @@ void Server::startServer()
                 }
                 else
                 {
-                    ret->neck.mfrom = fd;
-                    if(ret->neck.unlogin)
+                    // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
+                    // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
+                    if(ret->header.length == 0)
                     {
-                        std::string command(ret->neck.command);
-                        if(command == std::string("nonreq"))
+                        unlogin.removeUnlogin(fd);
+                    }
+                    else
+                    {
+                        ret->neck.mfrom = fd;
+                        if(ret->neck.unlogin)
                         {
-                            VioletProtNeck neck = {};
-                            strcpy(neck.command, "nonsucc");
-                            unlogin.addNewUnlogin(fd);
-                            std::string tmp = std::string("violet");
-                            sr.sendMsg(fd, neck, tmp);
-                        }
-                        if(command == std::string("nong"))
-                        {
-                            std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
-                            unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
-                        }
-                        if(command == std::string("nonp"))
-                        {
-                            //tmp
+                            std::string command(ret->neck.command);
+                            if(command == std::string("nonreq"))
+                            {
+                                VioletProtNeck neck = {};
+                                strcpy(neck.command, "nonsucc");
+                                strcpy(neck.username, std::to_string(fd).c_str());
+                                std::string tmp = std::string("violet");
+                                sr.sendMsg(fd, neck, tmp);
+                            }
+                            if(command == std::string("nong"))
+                            {
+                                std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
+                                unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
+                            }
+                            if(command == std::string("nonp"))
+                            {
+                                //tmp
+                            }
+                            if(command == std::string("nonig"))
+                            {
+                                unlogin.addNewUnlogin(fd);
+                            }
                         }
                     }
                 }

@@ -83,7 +83,10 @@ std::optional<Msg> SRHelper::recvMsg(int fd) {
     {
         close(fd);
         std::cout<< "client #" << fd << " closed" <<std::endl;
-        return std::nullopt;
+        Msg msg={};
+        //这里我的想法是找一个字段，用来存状态，但是先用这个吧
+        msg.header.length = 0;
+        return msg;
     }
     if(len < 0)
     {
