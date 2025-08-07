@@ -86,8 +86,28 @@ void Server::startServer()
                 }
                 else
                 {
+                    ret->neck.mfrom = fd;
                     std::cout<< ret->content.data() <<std::endl;
-                    std::cout<< ret->neck.unlogin <<std::endl;
+                    if(ret->neck.unlogin)
+                    {
+                        std::string command(ret->neck.command);
+                        if(command == std::string("nonreq"))
+                        {
+                            VioletProtNeck neck = {};
+                            strcpy(neck.command, "nonsucc");
+                            unlogin.addNewUnlogin(fd);
+                            std::string tmp = std::string("violet");
+                            sr.sendMsg(fd, neck, tmp);
+                        }
+                        if(command == std::string("nong"))
+                        {
+                            unlogin.sendBordcast(fd, ret->content.data());
+                        }
+                        if(command == std::string("nonp"))
+                        {
+                            //tmp
+                        }
+                    }
                 }
             }
         }

@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "protocol.h"
+#include "unlogincenter.h"
 
 /**
  * @brief The Server class
@@ -32,8 +33,8 @@ private:
     int epfd;
     Msg msg;
     SRHelper sr;
+    UnloginCenter unlogin;
     struct sockaddr_in serAddr;
-    std::list<int> onlineUnlogin;
     void init();
 };
 

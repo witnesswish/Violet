@@ -20,7 +20,7 @@ struct VioletProtHeader {
 //这个设计清澈中透露着愚蠢
 struct VioletProtNeck
 {
-    char command[12];     // 请求类型 0=注册 1=登录 2=私聊
+    char command[12];     // 请求类型，规定为小写，匿名群聊[NONG]，匿名私聊[NONP]具体请查阅readme
     bool unlogin;         // 这个设计是为匿名用户，只有匿名用户，这个值为真
     char username[32];   // 用户名(固定长度)
     char password[64];   // 密码(设计为加密后，初始用明文)

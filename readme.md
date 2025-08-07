@@ -7,6 +7,7 @@
 - [x] 网络通信（QTcpSocket）
 ## 数据结构设计
 - [x] 消息头(VioletProtHeader)
+- [X] 消息脖子(VioletProtNeck)
 - [x] 消息体(变长)
 ### 消息头
 ```
@@ -19,6 +20,30 @@ struct VioletProtHeader {
     uint32_t checksum;      // 头部校验和
 };
 ```
+### 消息脖子
+```
+struct VioletProtNeck
+{
+    char command[12];     // 请求类型，规定为大写，匿名群聊[NONG]，匿名私聊[NONP],
+    bool unlogin;         // 这个设计是为匿名用户，只有匿名用户，这个值为真
+    char username[32];   // 用户名(固定长度)
+    char password[64];   // 密码(设计为加密后，初始用明文)
+    uint8_t encrypt;    // 加密类型 0=无 1=MD5 2=AES
+    uint8_t os;         // 操作系统类型 0=Unknown 1=Windows 2=Linux 3=android...
+    uint8_t mto;        // 发送的对象，发送给哪个用户，或者哪个群，使用id
+    uint8_t mfrom;      // 数据发来的对象，是哪个用户，这个服务器收到消息的第一时间写入
+    //uint8_t tmp;      // 后续有了再继续加
+};
+```
+#### char command[12]
+- 说明  
+这个字段用来请求和回复，如果这个字段不对，会丢弃消息，规定这个字段使用小写
+- 匿名模式   
+1. 模式确认，客户端发送[nonreq]请求进行匿名，服务器回复[nonsucc]确认，[moderr]为错误
+2. 群聊，客户端发送[nong]进行匿名群聊，服务器回复[nongsucc]确认，[nongerr]为错
+3. 群发，服务器发送[nongb]进行群聊转发，
+3. 私聊，客户端发送[nonp]进行匿名私聊，服务器回复[nonpsucc]确认，[nonperr]为错
+1. 私发，服务器发送[nonpb]进行私聊转发，
 ### 消息体
 - 变长数据，具体内容根据消息类型而定
 ```
