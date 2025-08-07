@@ -87,7 +87,6 @@ void Server::startServer()
                 else
                 {
                     ret->neck.mfrom = fd;
-                    std::cout<< ret->content.data() <<std::endl;
                     if(ret->neck.unlogin)
                     {
                         std::string command(ret->neck.command);
@@ -101,6 +100,7 @@ void Server::startServer()
                         }
                         if(command == std::string("nong"))
                         {
+                            std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
                             unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
                         }
                         if(command == std::string("nonp"))
