@@ -13,6 +13,7 @@ public:
     UnloginCenter();
 private:
     int sock;
+    SRHelper sr;
     std::list<int> onlineUnlogin;
 public:
     void sendBordcast(int, std::string);

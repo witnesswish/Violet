@@ -25,6 +25,9 @@ void UnloginCenter::addNewUnlogin(int fd) {
         }
     }
     onlineUnlogin.push_back(fd);
+    VioletProtNeck neck = {};
+    strcpy(neck.command, "nonigsucc");
+    sr.sendMsg(fd, neck, (std::string &)"violet");
 }
 
 void UnloginCenter::removeUnlogin(int fd) {
