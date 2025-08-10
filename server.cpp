@@ -97,7 +97,9 @@ void Server::startServer()
                         ret->neck.mfrom = fd;
                         if(ret->neck.unlogin)
                         {
+                            std::string text = std::string(ret->content.begin(), ret->content.end());
                             std::string command(ret->neck.command);
+                            std::cout<<  "command: " << command <<std::endl;
                             if(command == std::string("nonreq"))
                             {
                                 VioletProtNeck neck = {};
@@ -111,13 +113,17 @@ void Server::startServer()
                                 std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
                                 unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
                             }
-                            if(command == std::string("nonp"))
-                            {
-                                //tmp
-                            }
                             if(command == std::string("nonig"))
                             {
                                 unlogin.addNewUnlogin(fd);
+                            }
+                            if(command == std::string("nonqg"))
+                            {
+                                unlogin.removeUnlogin(fd);
+                            }
+                            if(command == std::string("nonp"))
+                            {
+                                unlogin.privateChate(fd, ret->neck.mto, text);
                             }
                         }
                     }
