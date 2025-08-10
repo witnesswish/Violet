@@ -14,11 +14,12 @@ public:
 private:
     int sock;
     SRHelper sr;
-    std::list<int> onlineUnlogin;
+    static std::list<int> onlineUnlogin;
 public:
     void sendBordcast(int, std::string);
     void addNewUnlogin(int fd);
     void removeUnlogin(int fd);
+    void privateChate(int fd, uint8_t mto, std::string &);
 };
 
 #endif // UNLOGINCENTER_H
