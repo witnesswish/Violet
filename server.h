@@ -11,6 +11,8 @@
 #include <optional>
 #include <errno.h>
 #include <list>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "protocol.h"
@@ -36,6 +38,7 @@ private:
     UnloginCenter unlogin;
     struct sockaddr_in serAddr;
     void init();
+    int getRecvSize(int fd);
 };
 
 #endif // SERVER_H

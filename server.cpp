@@ -10,6 +10,16 @@ Server::Server()
 Server::~Server(){
     closeServer();
 }
+int Server::getRecvSize(int fd)
+{
+    int bytes;
+    if(ioctl(fd, FIONREAD, &bytes) < 0)
+    {
+        perror("read socket recv buffer error");
+        return -1;
+    }
+    return bytes;
+}
 
 void Server::init()
 {
@@ -65,9 +75,9 @@ void Server::startServer()
                 socklen_t clientAddrLength = sizeof(struct sockaddr_in);
                 int client = accept( sock, ( struct sockaddr* )&clientAddr, &clientAddrLength );
                 std::cout << "client connection from: "
-                     << inet_ntoa(clientAddr.sin_addr) << ":"
-                     << ntohs(clientAddr.sin_port) << ", clientfd = #"
-                     << client << std::endl;
+                    << inet_ntoa(clientAddr.sin_addr) << ":"
+                    << ntohs(clientAddr.sin_port) << ", clientfd = #"
+                    << client << std::endl;
                 addfd(client, epfd);
                 //clients_list.push_back(clientfd);一些操作
                 std::string welcome = "welcome, your id is #";
@@ -78,52 +88,66 @@ void Server::startServer()
             }
             else
             {
-                std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
-                auto ret = sr.recvMsg(fd);
-                if(ret == std::nullopt)
+                std::cout<< "get bytesfd : " << fd <<std::endl;
+                int bytesReady = getRecvSize(fd);
+                while(bytesReady > 41 || bytesReady == 0)
                 {
-                    std::cout<< "sr return null opt" <<std::endl;
-                }
-                else
-                {
-                    // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
-                    // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
-                    if(ret->header.length == 0)
+                    std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
+                    auto ret = sr.recvMsg(fd);
+                    if(ret == std::nullopt)
                     {
-                        unlogin.removeUnlogin(fd);
+                        std::cout<< "sr return null opt" <<std::endl;
                     }
                     else
                     {
-                        ret->neck.mfrom = fd;
-                        if(ret->neck.unlogin)
+                        std::cout<< "recv Msg: " << ret->header.length <<std::endl;
+                        if(ret->header.length == 1)
                         {
-                            std::string text = std::string(ret->content.begin(), ret->content.end());
-                            std::string command(ret->neck.command);
-                            std::cout<<  "command: " << command <<std::endl;
-                            if(command == std::string("nonreq"))
+                            std::cout<< "who not me" <<std::endl;
+                            bytesReady = 1;
+                        }
+                        // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
+                        // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
+                        if(ret->header.length == 0)
+                        {
+                            unlogin.removeUnlogin(fd);
+                            bytesReady = 1;
+                        }
+                        else
+                        {
+                            bytesReady = getRecvSize(fd);
+                            std::cout<< "by read: " << bytesReady <<std::endl;
+                            ret->neck.mfrom = fd;
+                            if(ret->neck.unlogin)
                             {
-                                VioletProtNeck neck = {};
-                                strcpy(neck.command, "nonsucc");
-                                strcpy(neck.username, std::to_string(fd).c_str());
-                                std::string tmp = std::string("violet");
-                                sr.sendMsg(fd, neck, tmp);
-                            }
-                            if(command == std::string("nong"))
-                            {
-                                std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
-                                unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
-                            }
-                            if(command == std::string("nonig"))
-                            {
-                                unlogin.addNewUnlogin(fd);
-                            }
-                            if(command == std::string("nonqg"))
-                            {
-                                unlogin.removeUnlogin(fd);
-                            }
-                            if(command == std::string("nonp"))
-                            {
-                                unlogin.privateChate(fd, ret->neck.mto, text);
+                                std::string text = std::string(ret->content.begin(), ret->content.end());
+                                std::string command(ret->neck.command);
+                                std::cout<<  "command: " << command <<std::endl;
+                                if(command == std::string("nonreq"))
+                                {
+                                    VioletProtNeck neck = {};
+                                    strcpy(neck.command, "nonsucc");
+                                    strcpy(neck.username, std::to_string(fd).c_str());
+                                    std::string tmp = std::string("violet");
+                                    sr.sendMsg(fd, neck, tmp);
+                                }
+                                if(command == std::string("nong"))
+                                {
+                                    std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
+                                    unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
+                                }
+                                if(command == std::string("nonig"))
+                                {
+                                    unlogin.addNewUnlogin(fd);
+                                }
+                                if(command == std::string("nonqg"))
+                                {
+                                    unlogin.removeUnlogin(fd);
+                                }
+                                if(command == std::string("nonp"))
+                                {
+                                    unlogin.privateChate(fd, ret->neck.mto, text);
+                                }
                             }
                         }
                     }

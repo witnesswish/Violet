@@ -90,10 +90,19 @@ std::optional<Msg> SRHelper::recvMsg(int fd) {
     }
     if(len < 0)
     {
-        if(errno != 104)
+        if(errno == 104)
         {
             close(fd);
             std::cout<< "client #" << fd << " crushed, close it" <<std::endl;
+            Msg msg = {};
+            msg.header.length = 0;
+            return msg; 
+        }
+        else if(errno == 11)
+        {
+            Msg msg = {};
+            msg.header.length = 1;
+            return msg; 
         }
         else
         {
