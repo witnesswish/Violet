@@ -88,7 +88,6 @@ void Server::startServer()
             }
             else
             {
-                std::cout<< "get bytesfd : " << fd <<std::endl;
                 int bytesReady = getRecvSize(fd);
                 while(bytesReady > 41 || bytesReady == 0)
                 {
@@ -100,15 +99,13 @@ void Server::startServer()
                     }
                     else
                     {
-                        std::cout<< "recv Msg: " << ret->header.length <<std::endl;
                         if(ret->header.length == 1)
                         {
-                            std::cout<< "who not me" <<std::endl;
                             bytesReady = 1;
                         }
                         // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
                         // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
-                        if(ret->header.length == 0)
+                        else if(ret->header.length == 0)
                         {
                             unlogin.removeUnlogin(fd);
                             bytesReady = 1;
@@ -116,7 +113,6 @@ void Server::startServer()
                         else
                         {
                             bytesReady = getRecvSize(fd);
-                            std::cout<< "by read: " << bytesReady <<std::endl;
                             ret->neck.mfrom = fd;
                             if(ret->neck.unlogin)
                             {
