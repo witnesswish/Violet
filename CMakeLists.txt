@@ -5,8 +5,6 @@ project(Violet LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(MariaDB REQUIRED)
-
 add_executable(Violet main.cpp
     mariadbhelper.h mariadbhelper.cpp
     server.h server.cpp
@@ -15,17 +13,21 @@ add_executable(Violet main.cpp
     protocol.h
     protocol.cpp)
 
-target_link_libraries(Violet
-    PRIVATE MariaDB::MariaDB
+include(GNUInstallDirs)
+
+find_library(MARIADBCPP_LIBRARY
+    NAMES mariadbcpp
+    PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
 )
 
-include(GNUInstallDirs)
+target_link_libraries(Violet PRIVATE mariadbcpp)
+
 install(TARGETS Violet
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# 添加条件编译测试模块的选项
+# 条件编译test
 option(BUILD_TEST "Build test executable" OFF)
 if(BUILD_TEST)
     message(STATUS "Building test executable")
@@ -36,10 +38,7 @@ if(BUILD_TEST)
         test.cpp
     )
 
-    # 链接 MariaDB 库到测试程序
-    target_link_libraries(test
-        PRIVATE MariaDB::MariaDB
-    )
+target_link_libraries(test PRIVATE mariadbcpp)
 endif()
 # mkdir build && cd build
 # cmake -DBUILD_TEST=ON ..

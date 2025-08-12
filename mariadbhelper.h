@@ -25,6 +25,8 @@ public:
     bool isConnected();
     std::vector<std::map<std::string, sql::SQLString>> query(const std::string sql, const std::vector<sql::SQLString> &params);
     bool execute(const std::string &sql, const std::vector<sql::SQLString> &params);
+    uint64_t getLastInsertId() const;
+    std::string getLastError() const;
     void beginTransaction();
     void commit();
     void rollback();
@@ -34,6 +36,7 @@ private:
     unsigned int m_port;
     bool m_autoConnect;
     bool m_connected;
+    std::string m_lastError;
     std::unique_ptr<sql::Connection> m_conn;
 };
 

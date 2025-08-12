@@ -3,10 +3,11 @@
 
 int main()
 {
-    MariadbHelper mariadb;
-    if (mariadb.connectMariadb("violet", "", "violet") < 0) {
+    MariadbHelper mariadb("violet", "violet@123", "violet");
+    if (mariadb.connectMariadb() < 0) {
         return -1;
     }
+    /**
     std::vector<sql::SQLString> params = {
         "user1",
         "user1",
@@ -16,6 +17,12 @@ int main()
     };
     mariadb.execute(
         "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);", params);
-    mariadb.query();
-    reteurn 0;
+    **/
+    std::vector<sql::SQLString> params = {"1"};
+    auto ret = mariadb.query("select username, email from user where 1=?;", params);
+    for(const auto& row : ret)
+    {
+        std::cout<< row.at("username") << "--" << row.at("email") <<std::endl;
+    }
+    return 0;
 }

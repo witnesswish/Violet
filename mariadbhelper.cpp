@@ -30,15 +30,21 @@ int MariadbHelper::connectMariadb()
     if (m_conn) {
         return 0;
     }
-    sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/"
-                         + m_database;
-    sql::Properties properties({{"user", m_user}, {"password", m_password}});
-    sql::Driver *driver = sql::mariadb::get_driver_instance();
-    m_conn = std::unique_ptr<sql::Connection>(driver->connect(url, properties));
-    if (!m_conn) {
+    try {
+        sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/"
+                             + m_database;
+        sql::Properties properties({{"user", m_user}, {"password", m_password}});
+        sql::Driver *driver = sql::mariadb::get_driver_instance();
+        m_conn = std::unique_ptr<sql::Connection>(driver->connect(url, properties));
+        if (!m_conn) {
+            return -1;
+        }
+        m_connected = true;
+    } catch(sql::SQLException& e) {
+        m_lastError = e.what();
+        m_connected = false;
         return -1;
     }
-    m_connected = true;
     return 0;
 }
 void MariadbHelper::disconnectMariadb()
@@ -70,12 +76,12 @@ std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(
         stmnt->setString(i + 1, params[i]);
     }
     std::unique_ptr<sql::ResultSet> res(stmnt->executeQuery());
-    ResultSetMetaData *meta = res->getMetaData();
+    sql::ResultSetMetaData *meta = res->getMetaData();
     unsigned int columns = meta->getColumnCount();
     while (res->next()) {
         std::map<std::string, sql::SQLString> row;
         for (unsigned int i = 1; i <= columns; ++i) {
-            std::string columnName = meta->getColumnName(i);
+            std::string columnName = meta->getColumnName(i).c_str();
             row[columnName] = res->getString(i);
         }
         result.push_back(row);
@@ -92,8 +98,34 @@ bool MariadbHelper::execute(const std::string &sql, const std::vector<sql::SQLSt
     for (size_t i = 0; i < params.size(); ++i) {
         stmnt->setString(i + 1, params[i]);
     }
-    stmt->execute();
+    stmnt->execute();
     return true;
+}
+
+uint64_t MariadbHelper::getLastInsertId() const
+{
+    if(!m_connected)
+    {
+        return 0;
+    }
+    try
+    {
+        std::unique_ptr<sql::Statement> stmt(m_conn->createStatement());
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT LAST_INSERT_ID()"));
+        if (res->next())
+        {
+            return res->getUInt64(1);
+        }
+    } 
+    catch (sql::SQLException&) 
+    {
+                // 忽略错误
+    }
+    return 0;
+}
+std::string MariadbHelper::getLastError() const
+{
+    return m_lastError;
 }
 
 void MariadbHelper::beginTransaction()
