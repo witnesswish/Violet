@@ -43,6 +43,7 @@ private:
     void init();
     int getRecvSize(int fd);
     void vlogin(int fd, std::string username, std::string password);
+    void vregister(int fd, std::string username, std::string password, std::string email);
 };
 
 #endif // SERVER_H

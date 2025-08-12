@@ -23,6 +23,14 @@ int main()
     for(const auto& row : ret)
     {
         std::cout<< row.at("username") << "--" << row.at("email") <<std::endl;
+        if(row.at("username").c_str() == (const char*)"user1")
+        {
+            std::cout<< "1" <<std::endl;
+        }
+        else
+        {
+            std::cout<< "2" <<std::endl;
+        }
     }
     return 0;
 }

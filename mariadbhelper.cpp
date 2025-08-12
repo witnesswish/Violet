@@ -15,7 +15,8 @@ MariadbHelper::MariadbHelper(const std::string &user,
 {
     m_connected = false;
     if (m_autoConnect) {
-        connectMariadb();
+        int ret = connectMariadb();
+        std::cout<< "auto con db: " << ret <<std::endl;
     }
     std::cout << "using mariadbhelper constructor" << std::endl;
 }

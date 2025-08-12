@@ -119,9 +119,11 @@ void Server::startServer()
                                 std::string command(ret->neck.command);
                                 std::string username(ret->neck.username);
                                 std::string password(ret->neck.password);
+                                std::string ccdemail(ret->neck.email);
+                                std::cout<< "email: " << ccdemail << "-" << sizeof(ret->neck) <<std::endl;
                                 if(command == "vreg")
                                 {
-                                    vlogin(fd, username, password);
+                                    vregister(fd, username, password, ccdemail);
                                 }
                             }
                             if(ret->neck.unlogin)
@@ -171,8 +173,24 @@ void Server::closeServer()
         close(sock);
 }
 
+void Server::vregister(int fd, std::string username, std::string password, std::string email) {
+    int ret = loginCenter.vregister(username, password, email, "salt");
+    if(ret < 0)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char*)"vregerr");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    VioletProtNeck neck = {};
+    strcpy(neck.command, (const char*)"vregsucc");
+    std::string tmp("violet");
+    sr.sendMsg(fd, neck, tmp);
+}
+
 void Server::vlogin(int fd, std::string username, std::string password) {
-    int ret = loginCenter.vregister(username, password, "vu1@elveso.asia", "salt");
+    int ret = loginCenter.vregister(username, password, "vu1@elves.asia", "salt");
     if(ret < 0)
     {
         VioletProtNeck neck = {};
