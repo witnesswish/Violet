@@ -101,6 +101,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd) {
         else if(errno == 11)
         {
             Msg msg = {};
+            std::cout<< "read on nonblock" <<std::endl;
             msg.header.length = 1;
             return msg; 
         }
@@ -119,6 +120,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd) {
     uint32_t totaLen = contentLen + sizeof(header) + sizeof(neck);
     std::vector<char> recvBuffer(totaLen);
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+    std::cout<< "read " << len << " bytes from socket buffer" <<std::endl;
     if(len != static_cast<ssize_t>(recvBuffer.size()))
     {
         std::cout<< "recv the wrong len" <<std::endl;

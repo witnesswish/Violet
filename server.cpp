@@ -120,7 +120,6 @@ void Server::startServer()
                                 std::string username(ret->neck.username);
                                 std::string password(ret->neck.password);
                                 std::string ccdemail(ret->neck.email);
-                                std::cout<< "email: " << ccdemail << "-" << sizeof(ret->neck) <<std::endl;
                                 if(command == "vreg")
                                 {
                                     vregister(fd, username, password, ccdemail);
