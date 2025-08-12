@@ -11,7 +11,9 @@ add_executable(Violet main.cpp
     unlogincenter.h unlogincenter.cpp
     common.h
     protocol.h
-    protocol.cpp)
+    protocol.cpp
+    logincenter.h logincenter.cpp
+    readme.md)
 
 include(GNUInstallDirs)
 
@@ -42,4 +44,4 @@ target_link_libraries(test PRIVATE mariadbcpp)
 endif()
 # mkdir build && cd build
 # cmake -DBUILD_TEST=ON ..
-# make
+# make test

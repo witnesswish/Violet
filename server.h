@@ -17,7 +17,7 @@
 #include "common.h"
 #include "protocol.h"
 #include "unlogincenter.h"
-#include "mariadbhelper.h"
+#include "logincenter.h"
 
 /**
  * @brief The Server class
@@ -37,11 +37,12 @@ private:
     Msg msg;
     SRHelper sr;
     UnloginCenter unlogin;
+    LoginCenter loginCenter;
     struct sockaddr_in serAddr;
-    MariadbHelper mariadb("violet", "violet@1admin", "violet", "127.0.0.1", 3306, false);
 private:
     void init();
     int getRecvSize(int fd);
+    void vlogin(int fd, std::string username, std::string password);
 };
 
 #endif // SERVER_H

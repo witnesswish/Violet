@@ -114,6 +114,16 @@ void Server::startServer()
                         {
                             bytesReady = getRecvSize(fd);
                             ret->neck.mfrom = fd;
+                            if(!ret->neck.unlogin)
+                            {
+                                std::string command(ret->neck.command);
+                                std::string username(ret->neck.username);
+                                std::string password(ret->neck.password);
+                                if(command == "vreg")
+                                {
+                                    vlogin(fd, username, password);
+                                }
+                            }
                             if(ret->neck.unlogin)
                             {
                                 std::string text = std::string(ret->content.begin(), ret->content.end());
@@ -159,4 +169,20 @@ void Server::closeServer()
         close(epfd);
     if(sock)
         close(sock);
+}
+
+void Server::vlogin(int fd, std::string username, std::string password) {
+    int ret = loginCenter.vregister(username, password, "vu1@elveso.asia", "salt");
+    if(ret < 0)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char*)"vregerr");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    VioletProtNeck neck = {};
+    strcpy(neck.command, (const char*)"vregsucc");
+    std::string tmp("violet");
+    sr.sendMsg(fd, neck, tmp);
 }
