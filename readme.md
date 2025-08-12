@@ -51,6 +51,9 @@ struct VioletProtNeck
 这个字段代表用户名，当客户端发给服务器时，代表来自用户，当服务器发给客户端时，代表来自哪个用户，客户端要维护好自己的名字
 - 特别说明
 当匿名模式时，这个用户名
+#### uint32_t length
+- 说明
+约定这个正常发送这个字段不为0，也就是说，如果是单纯发送命令和服务器交互，也必须带上内容，一般拼接`violet`
 ### 消息体
 - 变长数据，具体内容根据消息类型而定
 ```
@@ -67,3 +70,65 @@ std::vector<char> content;
 - 请求成功，选择使用模式 -使用匿名模式
 - 发送请求信息，包括选择模式[unlogin]，
 - 服务器将连接发送给unlogin处理
+
+
+## 数据库
+- 用户表
+```
+CREATE TABLE user (
+    uid INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(30) UNIQUE NOT NULL,
+    nickname VARCHAR(30),
+    email VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    salt VARCHAR(170) NOT NULL,
+    avat VARCHAR(255),
+    stat ENUM('inactive', 'banned', 'normal') DEFAULT 'normal',
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);violet
+```
+- 好友表
+```
+CREATE TABLE user_friend (
+    ufid INT PRIMARY KEY AUTO_INCREMENT,
+    uid1 INT NOT NULL,
+    uid2 INT NOT NULL,
+    stat ENUM('pending', 'accepted', 'blocked', 'bad') DEFAULT 'pending',
+    reqid INT NOT NULL COMMENT '谁发起的请求或操作',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (uid1) REFERENCES user(uid),
+    FOREIGN KEY (uid2) REFERENCES user(uid),
+    FOREIGN KEY (reqid) REFERENCES user(uid)
+);
+```
+- 群组
+```
+CREATE TABLE user_group (
+    gid INT PRIMARY KEY AUTO_INCREMENT,
+    gname VARCHAR(60) NOT NULL,
+    g_description TEXT,
+    gowner INT NOT NULL,
+    gavat VARCHAR(255),
+    gstat ENUM('normal', 'banned') DEFAULT 'normal',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (gowner) REFERENCES user(uid)
+);
+```
+- 群组成员
+```
+CREATE TABLE if not exists group_member (
+    gmid INT PRIMARY KEY AUTO_INCREMENT,
+    gid INT NOT NULL,
+    uid INT NOT NULL,
+    grole ENUM('owner', 'admin', 'member') DEFAULT 'member',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (gid) REFERENCES user_group(gid),
+    FOREIGN KEY (uid) REFERENCES user(uid),
+    UNIQUE KEY (gid, uid)
+);
+```
+- 
