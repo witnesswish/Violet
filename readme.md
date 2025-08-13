@@ -45,7 +45,9 @@ struct VioletProtNeck
 3. 私聊，客户端发送`nonp`进行匿名私聊，使用`mto`带上对方id，服务器回复`nonpsucc`确认，`nonperr`为错
 1. 私发，服务器发送`nonpb`进行私聊转发，
 5. 退出，客户端发送`nonqg`表示退出群聊，服务器回复`nonqgsucc`确认
-- 登录模式
+- 登录模式  
+
+说明一下，群组可以直接创建，也就是说，可以有一个人的群组
 1. 注册，客户端发送`vreg`加信息申请注册，服务器回复`vregsucc`表示成功，`vregerr`表示失败，
 2. 登录，客户端发送`vlogin`加信息，服务器回复`vloginsucc`表示成功，同时带上群组和好友信息，`vloginerr`代表失败
 3. 加好友，客户端发送`vaddf`加信息，服务器回复`vaddfsucc`

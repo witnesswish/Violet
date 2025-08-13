@@ -47,6 +47,7 @@ private:
     void vregister(int fd, std::string username, std::string password, std::string email);
     void vaddFriend(int fd, std::string reqName, std::string friName);
     void vaddGroup(int fd, std::string reqName, std::string groupName);
+    void vcreateGroup(int fd, std::string reqName, std::string groupName);
 };
 
 #endif // SERVER_H

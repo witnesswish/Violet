@@ -48,7 +48,8 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     std::vector<sql::SQLString> params = {username};
     auto ret = mariadb.query(
                 "select username, nickname, password, salt, avat from user where username=?;", params);
-    if (ret.size() < 1 || ret.size() != 1) {
+    //如果查出来的数据不是一条或者0条，那就是数据库大概率出问题了
+    if (ret.size() != 1) {
         return 1;
     }
     for (const auto &row : ret) {
@@ -57,7 +58,7 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
             return 2;
         }
     }
-    //到此为止，登录校验已经完成，下面是把用户的群组好友等信息返回
+    //到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
     //firend
     std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = mariadb.query("SELECT DISTINCT u.username AS friend_name FROM user_friend f "
@@ -80,7 +81,7 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
-    std::cout<< "sizeof info: " << userinfo <<std::endl;
+    //std::cout<< "sizeof info: " << userinfo <<std::endl;
     return 0;
 }
 
@@ -93,7 +94,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
     auto ret = mariadb.query("SELECT * FROM user_friend uf WHERE (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
                              "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) AND (uf.uid1 IN (SELECT uid FROM user "
                              "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))", params);
-    std::cout<< "add f: " << ret.size() <<std::endl;
+    //std::cout<< "add f: " << ret.size() <<std::endl;
     if(ret.size() == 1)
     {
         return 0;
@@ -123,19 +124,48 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName)
     std::vector<sql::SQLString> params = {reqName, groupName};
     auto ret = mariadb.query("SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
                              "AND (uid IN (SELECT uid FROM user WHERE username=?));", params);
-    std::cout<< "add g query ret: " << ret.size() <<std::endl;
+    //std::cout<< "add g query ret: " << ret.size() <<std::endl;
     if(ret.size() == 1)
     {
         return 1;
     }
     else if(ret.size() == 0)
     {
-        std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
+        //std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = mariadb.execute("INSERT INTO group_member (gid, uid) VALUES "
                         "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
                     iparams);
-        std::cout<< "debug log add g insert: " << m_ret << "--" << groupName <<std::endl;
+        //std::cout<< "debug log add g insert: " << m_ret << "--" << groupName <<std::endl;
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+    return -1;
+}
+
+int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
+{
+    if (mariadb.connectMariadb() < 0) {
+        return -1;
+    }
+    //SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
+    std::vector<sql::SQLString> params = {groupName};
+    auto ret = mariadb.query("SELECT gname FROM user_group WHERE gname=?;", params);
+    //std::cout<< "create g query ret: " << ret.size() <<std::endl;
+    if(ret.size() == 1)
+    {
+        return 1;
+    }
+    else if(ret.size() == 0)
+    {
+        //std::cout<< "debug log create g insert: " << reqName << "--" << groupName <<std::endl;
+        std::vector<sql::SQLString> iparams = {groupName, reqName};
+        bool m_ret = mariadb.execute("INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
+                    iparams);
+        //std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
         return 0;
     }
     else

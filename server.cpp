@@ -138,6 +138,10 @@ void Server::startServer()
                                 {
                                     vaddGroup(fd, username, content);
                                 }
+                                if(command == "vcrtg")
+                                {
+                                    vcreateGroup(fd, username, content);
+                                }
                             }
                             if(ret->neck.unlogin)
                             {
@@ -238,6 +242,31 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
     }
 }
 
+void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
+{
+    VioletProtNeck neck = {};
+    int ret = loginCenter.vcreateGroup(reqName, groupName);
+    if(ret < 0)
+    {
+        strcpy(neck.command, "vcrtgerr");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(ret == 0)
+    {
+        strcpy(neck.command, "vcrtgsucc");
+        sr.sendMsg(fd, neck, groupName);
+        return;
+    }
+    if(ret == 1)
+    {
+        strcpy(neck.command, "vcrtgerr");
+        std::string tmp("exists");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+
 void Server::vlogin(int fd, std::string username, std::string password) {
     memset(&u, 0, sizeof(u));
     std::string userinfo;
@@ -247,6 +276,14 @@ void Server::vlogin(int fd, std::string username, std::string password) {
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char*)"vloginerr");
         std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(ret == 2)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char*)"vloginerr");
+        std::string tmp("incorrect");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
