@@ -13,7 +13,8 @@ add_executable(Violet main.cpp
     protocol.h
     protocol.cpp
     logincenter.h logincenter.cpp
-    readme.md)
+    readme.md
+    redishelper.h redishelper.cpp)
 
 include(GNUInstallDirs)
 
@@ -22,7 +23,7 @@ find_library(MARIADBCPP_LIBRARY
     PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
 )
 
-target_link_libraries(Violet PRIVATE mariadbcpp)
+target_link_libraries(Violet PRIVATE mariadbcpp hiredis)
 
 install(TARGETS Violet
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -37,10 +38,11 @@ if(BUILD_TEST)
     # 添加测试可执行文件
     add_executable(test
         mariadbhelper.h mariadbhelper.cpp
+        redishelper.h redishelper.cpp
         test.cpp
     )
 
-target_link_libraries(test PRIVATE mariadbcpp)
+target_link_libraries(test PRIVATE mariadbcpp hiredis)
 endif()
 # mkdir build && cd build
 # cmake -DBUILD_TEST=ON ..
