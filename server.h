@@ -45,6 +45,7 @@ private:
     int getRecvSize(int fd);
     void vlogin(int fd, std::string username, std::string password);
     void vregister(int fd, std::string username, std::string password, std::string email);
+    void vaddFriend(int fd, std::string reqName, std::string friName);
 };
 
 #endif // SERVER_H

@@ -120,6 +120,7 @@ void Server::startServer()
                                 std::string username(ret->neck.username);
                                 std::string password(ret->neck.password);
                                 std::string ccdemail(ret->neck.email);
+                                std::string content(ret->content.begin(), ret->content.end());
                                 if(command == "vreg")
                                 {
                                     vregister(fd, username, password, ccdemail);
@@ -127,6 +128,14 @@ void Server::startServer()
                                 if(command == "vlogin")
                                 {
                                     vlogin(fd, username, password);
+                                }
+                                if(command == "vaddf")
+                                {
+                                    vaddFriend(fd, username, content);
+                                }
+                                if(command == "vaddg")
+                                {
+                                    vaddGroup(fd, username, content);
                                 }
                             }
                             if(ret->neck.unlogin)
@@ -190,6 +199,40 @@ void Server::vregister(int fd, std::string username, std::string password, std::
     strcpy(neck.command, (const char*)"vregsucc");
     std::string tmp("violet");
     sr.sendMsg(fd, neck, tmp);
+}
+
+void Server::vaddFriend(int fd, std::string reqName, std::string friName)
+{
+    VioletProtNeck neck = {};
+    int ret = loginCenter.vaddFriend(fd, reqName, friName);
+    if(ret == 0)
+    {
+        strcpy(neck.command, "vaddfsucc");
+        sr.sendMsg(fd, neck, friName);
+    }
+    else
+    {
+        strcpy(neck.command, "vaddferr");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+    }
+}
+
+void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
+{
+    VioletProtNeck neck = {};
+    int ret = loginCenter.vaddGroup(fd, reqName, groupName);
+    if(ret == 0)
+    {
+        strcpy(neck.command, "vaddgsucc");
+        sr.sendMsg(fd, neck, groupName);
+    }
+    else
+    {
+        strcpy(neck.command, "vaddgerr");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+    }
 }
 
 void Server::vlogin(int fd, std::string username, std::string password) {

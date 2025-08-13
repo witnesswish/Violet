@@ -84,6 +84,61 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     return 0;
 }
 
+int LoginCenter::vaddFriend(std::string requestName, std::string friName)
+{
+    if (mariadb.connectMariadb() < 0) {
+        return -1;
+    }
+    std::vector<sql::SQLString> params = {requestName, requestName, friName, friName};
+    auto ret = mariadb.query("SELECT * FROM user_friend uf WHERE (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
+                             "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) AND (uf.uid1 IN (SELECT uid FROM user "
+                             "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))", params);
+    std::cout<< "add f: " << ret.size() <<std::endl;
+    if(ret.size() == 1)
+    {
+        return 0;
+    }
+    else if(ret.size == 0)
+    {
+        std::vector<sql::SQLString> iparams = {requestName, friName, requestName};
+        mariadb.execute("INSERT INTO user_friend (uid1, uid2, reqid) "
+                        "VALUES"
+                        " ((SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?));",
+                    iparams);
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+    return -1;
+}
+
+int LoginCenter::vaddGroup(std::string reqName, std::string groupName)
+{
+    //SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
+    std::vector<sql::SQLString> params = {reqName, groupName};
+    auto ret = mariadb.query("SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
+                             "AND (uid IN (SELECT uid FROM user WHERE username=?));", params);
+    if(ret.size() == 1)
+    {
+        return 0;
+    }
+    else if(ret.size == 0)
+    {
+        std::vector<sql::SQLString> iparams = {groupName, reqName};
+        mariadb.execute("INSERT INTO group_member (gid, uid) VALUES "
+                        "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
+                    iparams);
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+    return -1;
+}
+
 Madb LoginCenter::setMariadb()
 {
     Madb m;
