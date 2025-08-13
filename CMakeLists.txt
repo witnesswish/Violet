@@ -14,7 +14,8 @@ add_executable(Violet main.cpp
     protocol.cpp
     logincenter.h logincenter.cpp
     readme.md
-    redishelper.h redishelper.cpp)
+    redishelper.h redishelper.cpp
+    test.cpp)
 
 include(GNUInstallDirs)
 

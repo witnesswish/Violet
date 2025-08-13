@@ -33,7 +33,7 @@ int MariadbHelper::connectMariadb()
     }
     try {
         sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/"
-                             + m_database;
+                + m_database;
         sql::Properties properties({{"user", m_user}, {"password", m_password}});
         sql::Driver *driver = sql::mariadb::get_driver_instance();
         m_conn = std::unique_ptr<sql::Connection>(driver->connect(url, properties));
@@ -65,7 +65,7 @@ bool MariadbHelper::isConnected()
 }
 
 std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(
-    const std::string sql, const std::vector<sql::SQLString> &params)
+        const std::string sql, const std::vector<sql::SQLString> &params)
 {
     std::vector<std::map<std::string, sql::SQLString>> result;
     if (!m_connected) {
@@ -117,10 +117,10 @@ uint64_t MariadbHelper::getLastInsertId() const
         {
             return res->getUInt64(1);
         }
-    } 
-    catch (sql::SQLException&) 
+    }
+    catch (sql::SQLException&)
     {
-                // 忽略错误
+        // 忽略错误
     }
     return 0;
 }

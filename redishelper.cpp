@@ -70,7 +70,7 @@ std::string RedisHelper::execute(const std::string &command)
     } else {
         //freeReplyObject(reply);
         //throw std::runtime_error("Unsupported reply type");
-        std::cout<< "unsupported reply type" <<std::endl;
+        std::cout<< "undefined reply type: " << reply->type <<std::endl;
     }
 
     freeReplyObject(reply);

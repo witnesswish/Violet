@@ -85,6 +85,14 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     return 0;
 }
 
+/**
+ * @brief LoginCenter::vaddFriend
+ * @param requestName
+ * @param friName
+ * @return
+ * 理论上来说插入好友关系的时候，应该固定好小的id在前还是大的id在前，不过没关系啦，我写的sql够复杂
+ * 我写这段话只是希望下次我看到的时候把这里改一下，这样应该好查一点
+ */
 int LoginCenter::vaddFriend(std::string requestName, std::string friName)
 {
     if (mariadb.connectMariadb() < 0) {
@@ -164,6 +172,16 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
         //std::cout<< "debug log create g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = mariadb.execute("INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
+                    iparams);
+        auto gid = mariadb.getLastInsertId();
+        if(gid == 0)
+        {
+            //备注：下次测试看这个函数是不是工作正常，正常的话可以直接修改sql插入id，不用查一遍表
+            //测试完就把这条注释删掉
+            std::cout<< "gid: " << gid <<std::end;
+        }
+        std::vector<sql::SQLString> xparams = {groupName, reqName};
+        bool v_ret = mariadb.execute("INSERT INTO group_member (gid, uid) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?));",
                     iparams);
         //std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
         return 0;
