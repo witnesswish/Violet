@@ -214,5 +214,6 @@ void Server::vlogin(int fd, std::string username, std::string password) {
     }
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char*)"vloginsucc");
+    std::cout<< "ser recv: " << userinfo <<std::endl;
     sr.sendMsg(fd, neck, userinfo);
 }

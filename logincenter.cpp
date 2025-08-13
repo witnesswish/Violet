@@ -68,6 +68,7 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     for (const auto& irow : friInfo) {
         if (username != std::string(irow.at("username").c_str())) {
             u.friends.push_back(std::string(irow.at("username")));
+            std::cout<< irow.at("username") <<std::endl;
         }
     }
     auto groupInfo = mariadb.query(
@@ -79,6 +80,7 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
+    std::cout<< "sizeof info: " << userinfo <<std::endl;
     return 0;
 }
 
