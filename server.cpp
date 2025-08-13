@@ -75,9 +75,9 @@ void Server::startServer()
                 socklen_t clientAddrLength = sizeof(struct sockaddr_in);
                 int client = accept( sock, ( struct sockaddr* )&clientAddr, &clientAddrLength );
                 std::cout << "client connection from: "
-                    << inet_ntoa(clientAddr.sin_addr) << ":"
-                    << ntohs(clientAddr.sin_port) << ", clientfd = #"
-                    << client << std::endl;
+                          << inet_ntoa(clientAddr.sin_addr) << ":"
+                          << ntohs(clientAddr.sin_port) << ", clientfd = #"
+                          << client << std::endl;
                 addfd(client, epfd);
                 //clients_list.push_back(clientfd);一些操作
                 std::string welcome = "welcome, your id is #";
@@ -266,6 +266,7 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
         sr.sendMsg(fd, neck, tmp);
         return;
     }
+}
 
 void Server::vlogin(int fd, std::string username, std::string password) {
     memset(&u, 0, sizeof(u));
