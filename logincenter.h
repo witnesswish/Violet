@@ -39,7 +39,7 @@ public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
     int vlogin(std::string username, std::string password, std::string &userInfo);
     int vaddFriend(std::string requestName, std::string firName);
-    int vaddGroup(std::string reqName, std::string groupName);
+    int vaddGroup(std::string requestName, std::string groupName);
     Madb setMariadb();
 private:
     MariadbHelper mariadb;
