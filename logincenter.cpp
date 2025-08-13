@@ -39,9 +39,8 @@ int LoginCenter::vregister(std::string username,
  * @return -1 for database error
  * 0 for succ, 1 for username not exists, 2 for password error
  */
-int LoginCenter::vlogin(std::string username, std::string password, User &uerinfo)
+int LoginCenter::vlogin(std::string username, std::string password, User &u)
 {
-    User u;
     if (mariadb.connectMariadb() < 0) {
         return -1;
     }
@@ -53,27 +52,29 @@ int LoginCenter::vlogin(std::string username, std::string password, User &uerinf
     }
     for (const auto &row : ret) {
         //vector<map<string, sql::SQLString>> query
-        if (password != row.at("password")) {
+        if (password != std::string(row.at("password").c_str())) {
             return 2;
         }
     }
     //到此为止，登录校验已经完成，下面是把用户的群组好友等信息返回
+    //firend
+    std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = mariadb.query("SELECT DISTINCT u.username AS friend_name FROM user_friend f "
                                  "JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
                                  "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) "
                                  "OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
-                                 params);
-    for (const auto &row : friInfo) {
-        if (username != row.at("friend_name")) {
-            u.friends.push_back(std::string(row.at("friend_name")));
+                                 fparams);
+    for (const auto& irow : friInfo) {
+        if (username != std::string(irow.at("username").c_str())) {
+            u.friends.push_back(std::string(irow.at("username")));
         }
     }
     auto groupInfo = mariadb.query(
         "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
         "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
         params);
-    for (const auto &row : friInfo) {
-        u.groups.push_back(std::string(row.at("group_name")));
+    for (const auto &row : groupInfo) {
+        u.groups.push_back(std::string(row.at("gname")));
     }
     mariadb.disconnectMariadb();
     return 0;

@@ -7,7 +7,14 @@ using namespace std;
 int main()
 {
     RedisHelper redis;
-    redis.connect("127.0.0.1", 6379);
+    redis.connectRedis("127.0.0.1", 6379, "");
+    redis.execute("set mykey hello");
+    redis.execute("set violet wuuuuuu");
+    cout<< redis.execute("get violet") <<endl;
+    redis.execute("SET %s %s", "counter", "42");
+    int value = std::stoi(redis.execute("GET counter"));
+    std::cout << "Counter: " << value << std::endl; // 输出 "42"
+                                                return 0;
 }
 
 // int main()

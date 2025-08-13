@@ -39,6 +39,7 @@ private:
     UnloginCenter unlogin;
     LoginCenter loginCenter;
     struct sockaddr_in serAddr;
+    User u;
 private:
     void init();
     int getRecvSize(int fd);

@@ -124,6 +124,10 @@ void Server::startServer()
                                 {
                                     vregister(fd, username, password, ccdemail);
                                 }
+                                if(command == "vlogin")
+                                {
+                                    vlogin(fd, username, password);
+                                }
                             }
                             if(ret->neck.unlogin)
                             {
@@ -189,17 +193,26 @@ void Server::vregister(int fd, std::string username, std::string password, std::
 }
 
 void Server::vlogin(int fd, std::string username, std::string password) {
-    int ret = loginCenter.vregister(username, password, "vu1@elves.asia", "salt");
+    memset(&u, 0, sizeof(u));
+    int ret = loginCenter.vlogin(username, password, u);
     if(ret < 0)
     {
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char*)"vregerr");
+        strcpy(neck.command, (const char*)"vloginerr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
+    for(const auto &it : u.friends)
+    {
+        std::cout<< it <<std::endl;
+    }
+    for(const auto &it : u.groups)
+    {
+        std::cout<< it <<std::endl;
+    }
     VioletProtNeck neck = {};
-    strcpy(neck.command, (const char*)"vregsucc");
+    strcpy(neck.command, (const char*)"vloginsucc");
     std::string tmp("violet");
     sr.sendMsg(fd, neck, tmp);
 }

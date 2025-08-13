@@ -68,44 +68,12 @@ std::string RedisHelper::execute(const std::string &command)
     } else if (reply->type == REDIS_REPLY_NIL) {
         result = "";
     } else {
-        freeReplyObject(reply);
-        throw std::runtime_error("Unsupported reply type");
+        //freeReplyObject(reply);
+        //throw std::runtime_error("Unsupported reply type");
+        std::cout<< "unsupported reply type" <<std::endl;
     }
 
     freeReplyObject(reply);
     return result;
 }
 
-template<typename Args>
-std::string RedisHelper::execute(const std::string &format, Args args)
-{
-    if (!context_) {
-        throw std::runtime_error("Not connected to Redis");
-    }
-
-    redisReply* reply = static_cast<redisReply*>(
-                redisCommand(context_, format.c_str(), args...)
-                );
-    if (!reply) {
-        throw std::runtime_error("Command execution failed: " +
-                                 std::string(context_->errstr));
-    }
-    std::string result;
-    if (reply->type == REDIS_REPLY_STRING) {
-        result = std::string(reply->str, reply->len);
-    } else if (reply->type == REDIS_REPLY_INTEGER) {
-        result = std::to_string(reply->integer);
-    } else if (reply->type == REDIS_REPLY_ERROR) {
-        std::string err = reply->str ? reply->str : "Unknown error";
-        freeReplyObject(reply);
-        throw std::runtime_error("Redis error: " + err);
-    } else if (reply->type == REDIS_REPLY_NIL) {
-        result = "";
-    } else {
-        freeReplyObject(reply);
-        throw std::runtime_error("Unsupported reply type");
-    }
-
-    freeReplyObject(reply);
-    return result;
-}
