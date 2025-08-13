@@ -194,7 +194,8 @@ void Server::vregister(int fd, std::string username, std::string password, std::
 
 void Server::vlogin(int fd, std::string username, std::string password) {
     memset(&u, 0, sizeof(u));
-    int ret = loginCenter.vlogin(username, password, u);
+    std::string userinfo;
+    int ret = loginCenter.vlogin(username, password, userinfo);
     if(ret < 0)
     {
         VioletProtNeck neck = {};
@@ -213,6 +214,5 @@ void Server::vlogin(int fd, std::string username, std::string password) {
     }
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char*)"vloginsucc");
-    std::string tmp("violet");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, userinfo);
 }

@@ -1,7 +1,11 @@
 #ifndef LOGINCENTER_H
 #define LOGINCENTER_H
 
+#include <cstdint>
+#include <cstring>
+#include <arpa/inet.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "mariadbhelper.h"
@@ -33,11 +37,12 @@ public:
     LoginCenter();
 public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
-    int vlogin(std::string username, std::string password, User &userInfo);
+    int vlogin(std::string username, std::string password, std::string &userInfo);
     Madb setMariadb();
 private:
     MariadbHelper mariadb;
-
+    std::string serializeTwoVector(const std::vector<std::string>& vec1, const std::vector<std::string>& vec2);
+    std::pair<std::vector<std::string>, std::vector<std::string>> deserializeVectors(const std::string& data);
 };
 
 #endif // LOGINCENTER_H
