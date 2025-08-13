@@ -121,6 +121,7 @@ void Server::startServer()
                                 std::string password(ret->neck.password);
                                 std::string ccdemail(ret->neck.email);
                                 std::string content(ret->content.begin(), ret->content.end());
+                                std::cout<< command << "-" << username << "-" << content <<std::endl;
                                 if(command == "vreg")
                                 {
                                     vregister(fd, username, password, ccdemail);
@@ -204,7 +205,7 @@ void Server::vregister(int fd, std::string username, std::string password, std::
 void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 {
     VioletProtNeck neck = {};
-    int ret = loginCenter.vaddFriend(fd, reqName, friName);
+    int ret = loginCenter.vaddFriend(reqName, friName);
     if(ret == 0)
     {
         strcpy(neck.command, "vaddfsucc");
@@ -221,11 +222,13 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 {
     VioletProtNeck neck = {};
-    int ret = loginCenter.vaddGroup(fd, reqName, groupName);
+    int ret = loginCenter.vaddGroup(reqName, groupName);
+    std::cout<< "add g ret: " << ret <<std::endl;
     if(ret == 0)
     {
         strcpy(neck.command, "vaddgsucc");
         sr.sendMsg(fd, neck, groupName);
+        return;
     }
     else
     {
@@ -257,6 +260,7 @@ void Server::vlogin(int fd, std::string username, std::string password) {
     }
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char*)"vloginsucc");
+    memcpy(neck.username, username.c_str(), sizeof(neck.username));
     std::cout<< "ser recv: " << userinfo <<std::endl;
     sr.sendMsg(fd, neck, userinfo);
 }
