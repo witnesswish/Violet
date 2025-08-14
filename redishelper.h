@@ -42,18 +42,23 @@ public:
         std::vector<std::string> result;
         if (reply->type == REDIS_REPLY_STRING)
         {
-            return result.push_back(std::string(reply->str, reply->len));
+            std::string tmp = std::string(reply->str, reply->len);
+            result.push_back(tmp);
+            freeReplyObject(reply);
+            return result;
         }
         if (reply->type == REDIS_REPLY_INTEGER)
         {
-            result.push_back(std::to_string(reply->integer));
+            std::string intmp = std::to_string(reply->integer);
+            result.push_back(intmp);
+            freeReplyObject(reply);
+            return result;
         }
         if (reply->type == REDIS_REPLY_ERROR)
         {
             std::string err = reply->str ? reply->str : "Unknown error";
-            freeReplyObject(reply);
             // throw std::runtime_error("Redis error: " + err);
-            std::cout << "redis error: " << err << std::end;
+            std::cout << "redis error: " << err << std::endl;
             freeReplyObject(reply);
             return std::nullopt;
         }
@@ -62,12 +67,19 @@ public:
             freeReplyObject(reply);
             return std::nullopt;
         }
+        if(reply->type == REDIS_REPLY_STATUS)
+        {
+            std::string vstatus(reply->str, reply->len);
+            result.push_back(vstatus);
+            freeReplyObject(reply);
+            return result;
+        }
         if (reply->type == REDIS_REPLY_ARRAY)
         {
-            for (size_t i = 0; i < reply->; ++i)
+            for (size_t i = 0; i < reply->elements; ++i)
             {
                 redisReply *childReply = reply->element[i];
-                if (childreply->type = REDIS_REPLY_STRING)
+                if (childReply->type = REDIS_REPLY_STRING)
                 {
                     result.emplace_back(childReply->str, childReply->len);
                 }
@@ -85,6 +97,7 @@ public:
                 freeReplyObject(reply);
                 return std::nullopt;
             }
+            freeReplyObject(reply);
             return result;
         }
         // freeReplyObject(reply);

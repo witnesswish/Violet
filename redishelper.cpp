@@ -80,34 +80,48 @@ std::optional<std::vector<std::string>> RedisHelper::execute(const std::string &
     std::vector<std::string> result;
     if (reply->type == REDIS_REPLY_STRING)
     {
+        for (size_t i = 0; i < reply->len; i++) {
+                    printf("%02x ", (unsigned char)reply->str[i]);  // 打印十六进制查看真实内容
+        }
+        std::string tmp(reply->str, reply->len);
+        std::cout<< "debug on execute rdis: " << tmp <<std::endl;
+        result.push_back(tmp);
         freeReplyObject(reply);
-        return result = std::string(reply->str, reply->len);
+        return result;
     }
     if (reply->type == REDIS_REPLY_INTEGER)
     {
+        std::string intmp(std::to_string(reply->integer));
+        result.push_back(intmp);
         freeReplyObject(reply);
-        result = std::to_string(reply->integer);
+        return result;
     }
     if (reply->type == REDIS_REPLY_ERROR)
     {
         std::string err = reply->str ? reply->str : "Unknown error";
-        freeReplyObject(reply);
         // throw std::runtime_error("Redis error: " + err);
         std::cout << "redis error: " << err << std::endl;
         freeReplyObject(reply);
         return std::nullopt;
     }
+        if(reply->type == REDIS_REPLY_STATUS)
+        {
+            std::string status(reply->str, reply->len);
+            result.push_back(status);
+            freeReplyObject(reply);
+            return result;
+        }
     if (reply->type == REDIS_REPLY_NIL)
     {
         freeReplyObject(reply);
-        return result = "";
+        return result;
     }
     if (reply->type == REDIS_REPLY_ARRAY)
     {
-        for (size_t i = 0; i < reply->; ++i)
+        for (size_t i = 0; i < reply->elements; ++i)
         {
             redisReply *childReply = reply->element[i];
-            if (childreply->type = REDIS_REPLY_STRING)
+            if (childReply->type = REDIS_REPLY_STRING)
             {
                 result.emplace_back(childReply->str, childReply->len);
             }
@@ -125,6 +139,7 @@ std::optional<std::vector<std::string>> RedisHelper::execute(const std::string &
             freeReplyObject(reply);
             return std::nullopt;
         }
+        freeReplyObject(reply);
         return result;
     }
     // freeReplyObject(reply);

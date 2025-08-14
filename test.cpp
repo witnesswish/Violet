@@ -1,6 +1,9 @@
 #include "mariadbhelper.h"
 #include "redishelper.h"
 #include <iostream>
+#include <vector>
+#include <optional>
+#include <string>
 
 using namespace std;
 
@@ -9,12 +12,26 @@ int main()
     RedisHelper redis;
     redis.connectRedis("127.0.0.1", 6379);
     redis.execute("sadd test test1 test2");
-    cout << redis.execute("smembers test") << "--" << redis.execute("sismember test test1") << endl;
-    redis.execute("hmset testuser username test uid 5 fd 8");
-    cout << redis.execute("hget testuser fd") << endl;
-    // redis.execute("SET %s %s", "counter", "42");  //带参数
-    // int value = std::stoi(redis.execute("GET counter"));
-    // std::cout << "Counter: " << value << std::endl; // 输出 "42"
+    auto ret1 = redis.execute("smembers test");
+    auto ret2 = redis.execute("sismember test test77");
+    if(ret1 != nullopt)
+    {
+        for(auto it : ret1.value())
+        {
+                cout<< it <<endl;
+        }
+        for(auto it : ret2.value())
+        {
+                cout<< it <<endl;
+        }
+    }
+    redis.execute("hmset testuser username test uid 5 fd 45");
+    auto ret3 = redis.execute("hget testuser fd");
+    for(auto it : ret3.value())
+    {
+            cout<< it <<endl;
+    }
+    redis.disconnectRedis();
     return 0;
 }
 
