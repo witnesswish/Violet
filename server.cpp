@@ -122,7 +122,7 @@ void Server::startServer()
                                 std::string password(ret->neck.pass);
                                 std::string ccdemail(ret->neck.email);
                                 std::string content(ret->content.begin(), ret->content.end());
-                                std::cout << command << "-" << username << "-" << content << std::endl;
+                                std::cout << command << "-" << username << "-" << password << "-" << content << std::endl;
                                 if (command == "vreg")
                                 {
                                     vregister(fd, username, password, ccdemail);
@@ -145,8 +145,7 @@ void Server::startServer()
                                 }
                                 if(command == "vpc")
                                 {
-                                    std::string friName(msg.neck.pass);
-                                    vprivateChat(fd, username, friName, content);
+                                    vprivateChat(fd, username, password, content);
                                 }
                             }
                             if (ret->neck.unlogin)
@@ -277,8 +276,10 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
 
 void Server::vprivateChat(int fd, std::string reqName, std::string friName, std::string content)
 {
+    std::cout<< "vpc params: " << reqName << "-" << friName << "-" << content <<std::endl;
     VioletProtNeck neck = {};
     int friId = loginCenter.vprivateChat(friName);
+    std::cout<< "login return fid: " << friId <<std::endl;
     if(friId < 3)
     {
         strcpy(neck.command, "vpcerr");
@@ -328,6 +329,6 @@ void Server::vlogin(int fd, std::string username, std::string password)
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char *)"vloginsucc");
     memcpy(neck.name, username.c_str(), sizeof(neck.name));
-    std::cout << "ser recv: " << userinfo << std::endl;
+    //std::cout << "ser recv: " << userinfo << std::endl;
     sr.sendMsg(fd, neck, userinfo);
 }
