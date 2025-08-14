@@ -23,7 +23,7 @@ public:
     bool isConnected() const;
     std::optional<std::vector<std::string>> execute(const std::string &command);
     template <typename... Args>
-    std::optional<std::vector<std::string>> execute(const std::string &format, Args... args)
+    std::optional<std::vector<stdin>> execute(const std::string &format, Args... args)
     {
         if (!context_)
         {

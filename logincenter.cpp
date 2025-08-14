@@ -1,5 +1,12 @@
 #include "logincenter.h"
 
+/**
+ * @brief LoginCenter::LoginCenter
+ * 1. 把所有群组都加载进来存到redis，用set存，查询的时候会返回redis-reply-array
+ * 2. 在用户登录的时候，把用户信息存到redis，用hash存 hmset 登陆者 username name fd 7 id 1，私聊的时候hget 登陆者 fd获取fd转发，如果没有找到，再想想怎么存消息，计划用redis list
+ * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
+ */
+std::map<std::string, std::set<int>> LoginCenter::onlineGUMap;
 LoginCenter::LoginCenter()
     : mariadb(setMariadb().m_user,
               setMariadb().m_password,
@@ -8,6 +15,23 @@ LoginCenter::LoginCenter()
               setMariadb().m_port,
               true)
 {
+    redis.connectRedis("127.0.0.1", 6379);
+    std::vector<sql::SQLString> params = {"1"};
+    auto ret = mariadb.query("SELECT DISTINCT gid, gname FROM user_group WHERE 1=?;", params);
+    for (const auto &row : ret)
+    {
+        std::vector<sql::SQLString> perparams = {row.at("gid").c_str()};
+        auto per = mariadb.query("SELECT DISTINCT u.username FROM group_member gm JOIN user u WHERE u.uid=gm.uid AND gid=?;", perparams);
+        for(const auto &perrow : per)
+        {
+            redis.execute("SADD %s %s", row.at("gname").c_str(), perrow.at("username").c_str());
+        }
+    }
+}
+
+LoginCenter::~LoginCenter()
+{
+    redis.disconnectRedis();
 }
 
 /**
@@ -29,8 +53,8 @@ int LoginCenter::vregister(std::string username,
     }
     std::vector<sql::SQLString> iparams = {username, username, email, password, salt};
     mariadb.execute(
-        "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);",
-        iparams);
+                "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);",
+                iparams);
     return 0;
 }
 
@@ -41,7 +65,7 @@ int LoginCenter::vregister(std::string username,
  * @return -1 for database error
  * 0 for succ, 1 for username not exists, 2 for password error
  */
-int LoginCenter::vlogin(std::string username, std::string password, std::string &userinfo)
+int LoginCenter::vlogin(int fd, std::string username, std::string password, std::string &userinfo)
 {
     User u;
     if (mariadb.connectMariadb() < 0)
@@ -50,7 +74,7 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     }
     std::vector<sql::SQLString> params = {username};
     auto ret = mariadb.query(
-        "select username, nickname, password, salt, avat from user where username=?;", params);
+                "select uid, username, nickname, password, salt, avat from user where username=?;", params);
     // 如果查出来的数据不是一条或者0条，那就是数据库大概率出问题了
     if (ret.size() != 1)
     {
@@ -61,11 +85,15 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
         // vector<map<string, sql::SQLString>> query
         if (password != std::string(row.at("password").c_str()))
         {
-            return 2;
+            if(ret == std::nullopt)
+            {
+                std::cout<< "redis execute error on login" <<std::endl;
+            }
+            return -2;
         }
+        auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
-    // firend
     std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = mariadb.query("SELECT DISTINCT u.username AS friend_name FROM user_friend f "
                                  "JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
@@ -76,17 +104,33 @@ int LoginCenter::vlogin(std::string username, std::string password, std::string 
     {
         if (username != std::string(irow.at("username").c_str()))
         {
+            //返回好友列表的同时，对所有在线好友广播上线
             u.friends.push_back(std::string(irow.at("username")));
-            std::cout << irow.at("username") << std::endl;
+            auto ret= redis.execute("HGET %s fd", std::string(irow.at("username")));
+            if(ret != std::nullopt)
+            {
+                for(auto it : ret.value())
+                {
+                    VioletProtNeck neck = {};
+                    strcpy(neck.command, (const char *)"vbul");
+                    strcpy(neck.name, username.c_str());
+                    std::string tmp("violet");
+                    sr.sendMsg(std::stoi(it), neck, tmp);
+                    std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << it <<std::endl;
+                }
+            }
+            //std::cout << irow.at("username") << std::endl;
         }
     }
     auto groupInfo = mariadb.query(
-        "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
-        "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
-        params);
+                "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
+                "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
+                params);
     for (const auto &row : groupInfo)
     {
         u.groups.push_back(std::string(row.at("gname")));
+        //维护群组在线用户列表
+        updateOnlineGUMap(std::string(row.at("gname")), fd);
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
@@ -192,7 +236,7 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
         {
             // 备注：下次测试看这个函数是不是工作正常，正常的话可以直接修改sql插入id，不用查一遍表
             // 测试完就把这条注释删掉
-            std::cout << "gid: " << gid << std::end;
+            std::cout << "gid: " << gid << std::endl;
         }
         std::vector<sql::SQLString> xparams = {groupName, reqName};
         bool v_ret = mariadb.execute("INSERT INTO group_member (gid, uid) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?));",
@@ -205,6 +249,38 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
         return -1;
     }
     return -1;
+}
+
+int LoginCenter::vprivateChat(std::string friName)
+{
+    auto ret = redis.execute("HGET %s fd", friName);
+    if(ret != std::nullopt)
+    {
+        for(auto &it : ret.value())
+        {
+            if(std::stoi(it))
+            {
+                return std::stoi(it);
+            }
+        }
+    }
+    return -1;
+}
+
+void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupName, std::string content)
+{
+    auto it = onlineGUMap.find(groupName);
+    if(it != onlineGUMap.end())
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vgcb");
+        memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+        std::set<int> &tmp = it->second;
+        for (int it : tmp)
+        {
+            sr.sendMsg(it, neck, content);
+        }
+    }
 }
 
 Madb LoginCenter::setMariadb()
@@ -292,3 +368,29 @@ std::pair<std::vector<std::string>, std::vector<std::string>> LoginCenter::deser
     }
     return {vec1, vec2};
 }
+
+/**
+ * @brief LoginCenter::updateOnlineGUMap
+ * @param key 群组名字
+ * @param value 登录用户的fd
+ */
+void LoginCenter::updateOnlineGUMap(const std::string &key, int value)
+{
+    auto it = onlineGUMap.find(key);
+    if(it != onlineGUMap.end())
+    {
+        std::set<int> &tmp = it->second;
+        if(tmp.find(value) == tmp.end())
+        {
+            tmp.insert(value);
+        }
+    }
+    else
+    {
+        std::set<int> newSet = {value};
+        onlineGUMap[key] = newSet;
+    }
+}
+
+
+

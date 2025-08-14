@@ -17,7 +17,9 @@
 
 RedisHelper::RedisHelper() {}
 
-RedisHelper::~RedisHelper() {}
+RedisHelper::~RedisHelper() {
+    disconnectRedis();
+}
 
 void RedisHelper::connectRedis(const std::string &host,
                                int port,
@@ -80,9 +82,9 @@ std::optional<std::vector<std::string>> RedisHelper::execute(const std::string &
     std::vector<std::string> result;
     if (reply->type == REDIS_REPLY_STRING)
     {
-        for (size_t i = 0; i < reply->len; i++) {
-                    printf("%02x ", (unsigned char)reply->str[i]);  // 打印十六进制查看真实内容
-        }
+        // for (size_t i = 0; i < reply->len; i++) {
+        //     printf("%02x ", (unsigned char)reply->str[i]);  // 打印十六进制
+        // }
         std::string tmp(reply->str, reply->len);
         std::cout<< "debug on execute rdis: " << tmp <<std::endl;
         result.push_back(tmp);

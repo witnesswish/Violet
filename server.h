@@ -18,6 +18,7 @@
 #include "protocol.h"
 #include "unlogincenter.h"
 #include "logincenter.h"
+#include "redishelper.h"
 
 /**
  * @brief The Server class
@@ -40,6 +41,7 @@ private:
     LoginCenter loginCenter;
     struct sockaddr_in serAddr;
     User u;
+    RedisHelper redis;
 
 private:
     void init();
@@ -49,6 +51,8 @@ private:
     void vaddFriend(int fd, std::string reqName, std::string friName);
     void vaddGroup(int fd, std::string reqName, std::string groupName);
     void vcreateGroup(int fd, std::string reqName, std::string groupName);
+    void vprivateChat(int fd, std::string reqName, std::string friName, std::string content);
+    void vgroupChat(int fd, std::string reqName, std::string gname, std::string content);
 };
 
 #endif // SERVER_H

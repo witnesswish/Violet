@@ -18,7 +18,7 @@ void UnloginCenter::sendBordcast(int from, std::string content)
         SRHelper sr;
         VioletProtNeck neck = {};
         strcpy(neck.command, "nongb");
-        strcpy(neck.username, std::to_string(from).c_str());
+        strcpy(neck.name, std::to_string(from).c_str());
         neck.mfrom = from;
         sr.sendMsg(fd, neck, content);
     }
@@ -56,7 +56,7 @@ void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)
     {
         if (afd == mto)
         {
-            strcpy(neck.username, std::to_string(fd).c_str());
+            strcpy(neck.name, std::to_string(fd).c_str());
             strcpy(neck.command, (const char *)"nonpb");
             neck.mfrom = fd;
             sr.sendMsg(mto, neck, text);
@@ -64,7 +64,7 @@ void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)
         }
     }
     strcpy(neck.command, (const char *)"nonperr");
-    strcpy(neck.username, std::to_string(mto).c_str());
+    strcpy(neck.name, std::to_string(mto).c_str());
     std::string tmp("user not online");
     sr.sendMsg(fd, neck, tmp);
 }

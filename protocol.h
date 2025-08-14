@@ -23,10 +23,10 @@ struct VioletProtNeck
 {
     char command[12];  // 请求类型，规定为小写，匿名群聊[NONG]，匿名私聊[NONP]具体请查阅readme
     bool unlogin;      // 这个设计是为匿名用户，只有匿名用户，这个值为真
-    char username[32]; // 用户名(固定长度)
+    char name[32]; // 用户名(固定长度)
     char email[32];
     char evt[5];
-    char password[64]; // 密码(设计为加密后，初始用明文)
+    char pass[64]; // 密码(设计为加密后，初始用明文)
     uint8_t encrypt;   // 加密类型 0=无 1=MD5 2=AES
     uint8_t os;        // 操作系统类型 0=Unknown 1=Windows 2=Linux 3=android...
     uint8_t mto;       // 发送的对象，发送给哪个用户，或者哪个群，使用id

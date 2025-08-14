@@ -24,17 +24,20 @@ struct VioletProtHeader {
 ```
 struct VioletProtNeck
 {
-    char command[12];     // 请求类型，规定为大写，匿名群聊[NONG]，匿名私聊[NONP],
-    bool unlogin;         // 这个设计是为匿名用户，只有匿名用户，这个值为真
-    char username[32];   // 用户名(固定长度)
-    char password[64];   // 密码(设计为加密后，初始用明文)
-    uint8_t encrypt;    // 加密类型 0=无 1=MD5 2=AES
-    uint8_t os;         // 操作系统类型 0=Unknown 1=Windows 2=Linux 3=android...
-    uint8_t mto;        // 发送的对象，发送给哪个用户，或者哪个群，使用id
-    uint8_t mfrom;      // 数据发来的对象，是哪个用户，这个服务器收到消息的第一时间写入
-    //uint8_t tmp;      // 后续有了再继续加
+    char command[12];  // 请求类型，规定为小写，匿名群聊[NONG]，匿名私聊[NONP]具体请查阅readme
+    bool unlogin;      // 这个设计是为匿名用户，只有匿名用户，这个值为真
+    char name[32]; // 用户名(固定长度)
+    char email[32];
+    char evt[5];
+    char pass[64]; // 密码(设计为加密后，初始用明文)
+    uint8_t encrypt;   // 加密类型 0=无 1=MD5 2=AES
+    uint8_t os;        // 操作系统类型 0=Unknown 1=Windows 2=Linux 3=android...
+    uint8_t mto;       // 发送的对象，发送给哪个用户，或者哪个群，使用id
+    uint8_t mfrom;     // 数据发来的对象，是哪个用户，这个服务器收到消息的第一时间写入
+    // uint8_t tmp;      // 后续有了再继续加
 };
 ```
+# 所有的交流协议都在这里定义，如果忘记了，请来这里
 #### char command[12]
 - 说明  这个字段用来请求和回复，如果这个字段不对，会丢弃消息，规定这个字段使用小写，一般是在客户端请求后面加`succ`或者`err`，字段只要12，所以请求要短
 - 匿名模式   
@@ -47,12 +50,18 @@ struct VioletProtNeck
 5. 退出，客户端发送`nonqg`表示退出群聊，服务器回复`nonqgsucc`确认
 - 登录模式  
 
-说明一下，群组可以直接创建，也就是说，可以有一个人的群组
+        说明一下，群组可以直接创建，也就是说，可以有一个人的群组
 1. 注册，客户端发送`vreg`加信息申请注册，服务器回复`vregsucc`表示成功，`vregerr`表示失败，
 2. 登录，客户端发送`vlogin`加信息，服务器回复`vloginsucc`表示成功，同时带上群组和好友信息，`vloginerr`代表失败
 3. 加好友，客户端发送`vaddf`加信息，服务器回复`vaddfsucc`
 4. 加群组，客户端发送`vaddg`加信息，
 5. 创建群组，客户端发送`vcrtg`加信息，
+6. 上线广播，服务器发送`vbul`加信息,广播里 neck.name 字段带用户名
+6. 群聊请求，客户端发送`vgc`,这种情况，使用 pass 来的带上群组名称，如果失败返回`vgcerr`，成功不返回
+6. 群聊广播，服务器发送`vgcb`,使用 neck.name 字段带上请求方用户名
+7. 私聊请求，客户端发送`vpc`,这种情况，使用 pass 来带对方用户名，如果失败返回`vpcerr`，成功不返回
+8. 私聊转发，服务器发送`vpcb`,使用 neck.name 字段带上请求对象用户名
+
 #### char username[32]
 - 说明
 这个字段代表用户名，当客户端发给服务器时，代表来自用户，当服务器发给客户端时，代表来自哪个用户，客户端要维护好自己的名字

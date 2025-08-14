@@ -7,9 +7,13 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <map>
+#include <set>
+#include <sys/socket.h>
 
 #include "mariadbhelper.h"
 #include "protocol.h"
+#include "redishelper.h"
 
 // mariadb 连接信息
 struct Madb
@@ -35,19 +39,27 @@ class LoginCenter
 {
 public:
     LoginCenter();
+    ~LoginCenter();
 
 public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
-    int vlogin(std::string username, std::string password, std::string &userInfo);
+    int vlogin(int fd, std::string username, std::string password, std::string &userInfo);
     int vaddFriend(std::string requestName, std::string firName);
     int vaddGroup(std::string requestName, std::string groupName);
     int vcreateGroup(std::string reqName, std::string groupName);
+    int vprivateChat(std::string firName);
+    void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content);
     Madb setMariadb();
 
 private:
+    SRHelper sr;
     MariadbHelper mariadb;
+    RedisHelper redis;
+    static std::map<std::string, std::set<int>> onlineGUMap;
+private:
     std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);
     std::pair<std::vector<std::string>, std::vector<std::string>> deserializeVectors(const std::string &data);
+    void updateOnlineGUMap(const std::string& key, int value);
 };
 
 #endif // LOGINCENTER_H

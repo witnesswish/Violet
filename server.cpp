@@ -118,8 +118,8 @@ void Server::startServer()
                             if (!ret->neck.unlogin)
                             {
                                 std::string command(ret->neck.command);
-                                std::string username(ret->neck.username);
-                                std::string password(ret->neck.password);
+                                std::string username(ret->neck.name);
+                                std::string password(ret->neck.pass);
                                 std::string ccdemail(ret->neck.email);
                                 std::string content(ret->content.begin(), ret->content.end());
                                 std::cout << command << "-" << username << "-" << content << std::endl;
@@ -143,6 +143,11 @@ void Server::startServer()
                                 {
                                     vcreateGroup(fd, username, content);
                                 }
+                                if(command == "vpc")
+                                {
+                                    std::string friName(msg.neck.pass);
+                                    vprivateChat(fd, username, friName, content);
+                                }
                             }
                             if (ret->neck.unlogin)
                             {
@@ -153,7 +158,7 @@ void Server::startServer()
                                 {
                                     VioletProtNeck neck = {};
                                     strcpy(neck.command, "nonsucc");
-                                    strcpy(neck.username, std::to_string(fd).c_str());
+                                    strcpy(neck.name, std::to_string(fd).c_str());
                                     std::string tmp = std::string("violet");
                                     sr.sendMsg(fd, neck, tmp);
                                 }
@@ -270,11 +275,32 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
     }
 }
 
+void Server::vprivateChat(int fd, std::string reqName, std::string friName, std::string content)
+{
+    VioletProtNeck neck = {};
+    int friId = loginCenter.vprivateChat(friName);
+    if(friId < 3)
+    {
+        strcpy(neck.command, "vpcerr");
+        std::string tmp("notonline");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    strcpy(neck.command, "vpcb");
+    memcpy(neck.name, reqName.c_str(), sizeof(reqName));
+    sr.sendMsg(friId, neck, content);
+}
+
+void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::string content)
+{
+    vgroupChat(fd, reqName, gname, content);
+}
+
 void Server::vlogin(int fd, std::string username, std::string password)
 {
     memset(&u, 0, sizeof(u));
     std::string userinfo;
-    int ret = loginCenter.vlogin(username, password, userinfo);
+    int ret = loginCenter.vlogin(fd, username, password, userinfo);
     if (ret < 0)
     {
         VioletProtNeck neck = {};
@@ -291,17 +317,17 @@ void Server::vlogin(int fd, std::string username, std::string password)
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    for (const auto &it : u.friends)
-    {
-        std::cout << it << std::endl;
-    }
-    for (const auto &it : u.groups)
-    {
-        std::cout << it << std::endl;
-    }
+    // for (const auto &it : u.friends)
+    // {
+    //     std::cout << it << std::endl;
+    // }
+    // for (const auto &it : u.groups)
+    // {
+    //     std::cout << it << std::endl;
+    // }
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char *)"vloginsucc");
-    memcpy(neck.username, username.c_str(), sizeof(neck.username));
+    memcpy(neck.name, username.c_str(), sizeof(neck.name));
     std::cout << "ser recv: " << userinfo << std::endl;
     sr.sendMsg(fd, neck, userinfo);
 }
