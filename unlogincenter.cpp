@@ -2,14 +2,16 @@
 
 std::list<int> UnloginCenter::onlineUnlogin = {};
 
-UnloginCenter::UnloginCenter() {
+UnloginCenter::UnloginCenter()
+{
 }
 
-void UnloginCenter::sendBordcast(int from, std::string content) {
-    std::cout<< "sb: " << content <<std::endl;
-    for(auto& fd : onlineUnlogin)
+void UnloginCenter::sendBordcast(int from, std::string content)
+{
+    std::cout << "sb: " << content << std::endl;
+    for (auto &fd : onlineUnlogin)
     {
-        if(fd == from)
+        if (fd == from)
         {
             continue;
         }
@@ -22,13 +24,14 @@ void UnloginCenter::sendBordcast(int from, std::string content) {
     }
 }
 
-void UnloginCenter::addNewUnlogin(int fd) {
+void UnloginCenter::addNewUnlogin(int fd)
+{
     // 这里后续可以做别的逻辑判断
-    for(auto& afd : onlineUnlogin)
+    for (auto &afd : onlineUnlogin)
     {
-        if(afd == fd)
+        if (afd == fd)
         {
-            std::cout<< "user #" << fd << "already on list" <<std::endl;
+            std::cout << "user #" << fd << "already on list" << std::endl;
             return;
         }
     }
@@ -37,19 +40,21 @@ void UnloginCenter::addNewUnlogin(int fd) {
     strcpy(neck.command, "nonigsucc");
     std::string tmp("violet");
     sr.sendMsg(fd, neck, tmp);
-    std::cout<< "there is " << onlineUnlogin.size() << " on lists" <<std::endl;
+    std::cout << "there is " << onlineUnlogin.size() << " on lists" << std::endl;
 }
 
-void UnloginCenter::removeUnlogin(int fd) {
-    onlineUnlogin.remove_if([fd](int x){return x == fd;});
-    std::cout<< "remove #" << fd << " remain: " <<  onlineUnlogin.size() <<std::endl;
+void UnloginCenter::removeUnlogin(int fd)
+{
+    onlineUnlogin.remove_if([fd](int x)
+                            { return x == fd; });
+    std::cout << "remove #" << fd << " remain: " << onlineUnlogin.size() << std::endl;
 }
 void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)
 {
     VioletProtNeck neck = {};
-    for(auto &afd : onlineUnlogin)
+    for (auto &afd : onlineUnlogin)
     {
-        if(afd == mto)
+        if (afd == mto)
         {
             strcpy(neck.username, std::to_string(fd).c_str());
             strcpy(neck.command, (const char *)"nonpb");

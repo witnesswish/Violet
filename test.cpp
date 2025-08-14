@@ -9,13 +9,13 @@ int main()
     RedisHelper redis;
     redis.connectRedis("127.0.0.1", 6379);
     redis.execute("sadd test test1 test2");
-    cout<< redis.execute("smembers test") << "--" << redis.execute("sismember test test1") <<endl;
+    cout << redis.execute("smembers test") << "--" << redis.execute("sismember test test1") << endl;
     redis.execute("hmset testuser username test uid 5 fd 8");
-    cout<< redis.execute("hget testuser fd") <<endl;
-    //redis.execute("SET %s %s", "counter", "42");  //带参数
-    //int value = std::stoi(redis.execute("GET counter"));
-    //std::cout << "Counter: " << value << std::endl; // 输出 "42"
-                                                return 0;
+    cout << redis.execute("hget testuser fd") << endl;
+    // redis.execute("SET %s %s", "counter", "42");  //带参数
+    // int value = std::stoi(redis.execute("GET counter"));
+    // std::cout << "Counter: " << value << std::endl; // 输出 "42"
+    return 0;
 }
 
 // int main()

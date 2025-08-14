@@ -11,7 +11,7 @@
 #include "mariadbhelper.h"
 #include "protocol.h"
 
-//mariadb 连接信息
+// mariadb 连接信息
 struct Madb
 {
     std::string m_user;
@@ -21,7 +21,7 @@ struct Madb
     unsigned int m_port;
 };
 
-//用户信息结构体
+// 用户信息结构体
 struct User
 {
     std::string username;
@@ -35,6 +35,7 @@ class LoginCenter
 {
 public:
     LoginCenter();
+
 public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
     int vlogin(std::string username, std::string password, std::string &userInfo);
@@ -42,10 +43,11 @@ public:
     int vaddGroup(std::string requestName, std::string groupName);
     int vcreateGroup(std::string reqName, std::string groupName);
     Madb setMariadb();
+
 private:
     MariadbHelper mariadb;
-    std::string serializeTwoVector(const std::vector<std::string>& vec1, const std::vector<std::string>& vec2);
-    std::pair<std::vector<std::string>, std::vector<std::string>> deserializeVectors(const std::string& data);
+    std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);
+    std::pair<std::vector<std::string>, std::vector<std::string>> deserializeVectors(const std::string &data);
 };
 
 #endif // LOGINCENTER_H

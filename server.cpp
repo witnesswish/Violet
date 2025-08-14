@@ -1,19 +1,20 @@
 #include "server.h"
 
-Server::Server() 
+Server::Server()
 {
     sock = 0;
     epfd = 0;
     serAddr.sin_port = htons(3434);
     serAddr.sin_addr.s_addr = INADDR_ANY;
 }
-Server::~Server(){
+Server::~Server()
+{
     closeServer();
 }
 int Server::getRecvSize(int fd)
 {
     int bytes;
-    if(ioctl(fd, FIONREAD, &bytes) < 0)
+    if (ioctl(fd, FIONREAD, &bytes) < 0)
     {
         perror("read socket recv buffer error");
         return -1;
@@ -24,29 +25,29 @@ int Server::getRecvSize(int fd)
 void Server::init()
 {
     sock = socket(PF_INET, SOCK_STREAM, 0);
-    if(sock < 0)
+    if (sock < 0)
     {
         perror("socket error");
         exit(-1);
     }
     int optval = 1;
-    if(setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)))
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval)))
     {
         perror("setsockopt error");
         exit(-1);
     }
-    if(bind(sock, (const struct sockaddr*)&serAddr, sizeof(serAddr)) < 0)
+    if (bind(sock, (const struct sockaddr *)&serAddr, sizeof(serAddr)) < 0)
     {
         perror("bind error");
         exit(-1);
     }
-    if(listen(sock, 10) < 0)
+    if (listen(sock, 10) < 0)
     {
         perror("listen error");
         exit(-1);
     }
-    epfd = epoll_create (EPOLL_SIZE);
-    if(epfd < 0)
+    epfd = epoll_create(EPOLL_SIZE);
+    if (epfd < 0)
     {
         perror("epfd error");
         exit(-1);
@@ -58,54 +59,54 @@ void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
     init();
-    while(1)
+    while (1)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
-        if(epoll_events_count < 0)
+        if (epoll_events_count < 0)
         {
             perror("epoll event count error");
             break;
         }
-        for(int i = 0; i < epoll_events_count; ++i)
+        for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
-            if(fd == sock)
+            if (fd == sock)
             {
                 struct sockaddr_in clientAddr;
                 socklen_t clientAddrLength = sizeof(struct sockaddr_in);
-                int client = accept( sock, ( struct sockaddr* )&clientAddr, &clientAddrLength );
+                int client = accept(sock, (struct sockaddr *)&clientAddr, &clientAddrLength);
                 std::cout << "client connection from: "
                           << inet_ntoa(clientAddr.sin_addr) << ":"
                           << ntohs(clientAddr.sin_port) << ", clientfd = #"
                           << client << std::endl;
                 addfd(client, epfd);
-                //clients_list.push_back(clientfd);一些操作
+                // clients_list.push_back(clientfd);一些操作
                 std::string welcome = "welcome, your id is #";
                 welcome += std::to_string(client);
                 welcome += ", enjoy yourself";
-                std::cout<< "welcome: " << welcome <<std::endl;
+                std::cout << "welcome: " << welcome << std::endl;
                 sr.sendMsg(client, 0, welcome);
             }
             else
             {
                 int bytesReady = getRecvSize(fd);
-                while(bytesReady > 41 || bytesReady == 0)
+                while (bytesReady > 41 || bytesReady == 0)
                 {
                     std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
                     auto ret = sr.recvMsg(fd);
-                    if(ret == std::nullopt)
+                    if (ret == std::nullopt)
                     {
-                        std::cout<< "sr return null opt" <<std::endl;
+                        std::cout << "sr return null opt" << std::endl;
                     }
                     else
                     {
-                        if(ret->header.length == 1)
+                        if (ret->header.length == 1)
                         {
                             bytesReady = 1;
                         }
                         // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
                         // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
-                        else if(ret->header.length == 0)
+                        else if (ret->header.length == 0)
                         {
                             unlogin.removeUnlogin(fd);
                             bytesReady = 1;
@@ -114,41 +115,41 @@ void Server::startServer()
                         {
                             bytesReady = getRecvSize(fd);
                             ret->neck.mfrom = fd;
-                            if(!ret->neck.unlogin)
+                            if (!ret->neck.unlogin)
                             {
                                 std::string command(ret->neck.command);
                                 std::string username(ret->neck.username);
                                 std::string password(ret->neck.password);
                                 std::string ccdemail(ret->neck.email);
                                 std::string content(ret->content.begin(), ret->content.end());
-                                std::cout<< command << "-" << username << "-" << content <<std::endl;
-                                if(command == "vreg")
+                                std::cout << command << "-" << username << "-" << content << std::endl;
+                                if (command == "vreg")
                                 {
                                     vregister(fd, username, password, ccdemail);
                                 }
-                                if(command == "vlogin")
+                                if (command == "vlogin")
                                 {
                                     vlogin(fd, username, password);
                                 }
-                                if(command == "vaddf")
+                                if (command == "vaddf")
                                 {
                                     vaddFriend(fd, username, content);
                                 }
-                                if(command == "vaddg")
+                                if (command == "vaddg")
                                 {
                                     vaddGroup(fd, username, content);
                                 }
-                                if(command == "vcrtg")
+                                if (command == "vcrtg")
                                 {
                                     vcreateGroup(fd, username, content);
                                 }
                             }
-                            if(ret->neck.unlogin)
+                            if (ret->neck.unlogin)
                             {
                                 std::string text = std::string(ret->content.begin(), ret->content.end());
                                 std::string command(ret->neck.command);
-                                std::cout<<  "command: " << command <<std::endl;
-                                if(command == std::string("nonreq"))
+                                std::cout << "command: " << command << std::endl;
+                                if (command == std::string("nonreq"))
                                 {
                                     VioletProtNeck neck = {};
                                     strcpy(neck.command, "nonsucc");
@@ -156,20 +157,20 @@ void Server::startServer()
                                     std::string tmp = std::string("violet");
                                     sr.sendMsg(fd, neck, tmp);
                                 }
-                                if(command == std::string("nong"))
+                                if (command == std::string("nong"))
                                 {
-                                    std::cout<< "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) <<std::endl;
+                                    std::cout << "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) << std::endl;
                                     unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
                                 }
-                                if(command == std::string("nonig"))
+                                if (command == std::string("nonig"))
                                 {
                                     unlogin.addNewUnlogin(fd);
                                 }
-                                if(command == std::string("nonqg"))
+                                if (command == std::string("nonqg"))
                                 {
                                     unlogin.removeUnlogin(fd);
                                 }
-                                if(command == std::string("nonp"))
+                                if (command == std::string("nonp"))
                                 {
                                     unlogin.privateChate(fd, ret->neck.mto, text);
                                 }
@@ -184,24 +185,25 @@ void Server::startServer()
 }
 void Server::closeServer()
 {
-    if(epfd)
+    if (epfd)
         close(epfd);
-    if(sock)
+    if (sock)
         close(sock);
 }
 
-void Server::vregister(int fd, std::string username, std::string password, std::string email) {
+void Server::vregister(int fd, std::string username, std::string password, std::string email)
+{
     int ret = loginCenter.vregister(username, password, email, "salt");
-    if(ret < 0)
+    if (ret < 0)
     {
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char*)"vregerr");
+        strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
     VioletProtNeck neck = {};
-    strcpy(neck.command, (const char*)"vregsucc");
+    strcpy(neck.command, (const char *)"vregsucc");
     std::string tmp("violet");
     sr.sendMsg(fd, neck, tmp);
 }
@@ -210,7 +212,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 {
     VioletProtNeck neck = {};
     int ret = loginCenter.vaddFriend(reqName, friName);
-    if(ret == 0)
+    if (ret == 0)
     {
         strcpy(neck.command, "vaddfsucc");
         sr.sendMsg(fd, neck, friName);
@@ -227,8 +229,8 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 {
     VioletProtNeck neck = {};
     int ret = loginCenter.vaddGroup(reqName, groupName);
-    std::cout<< "add g ret: " << ret <<std::endl;
-    if(ret == 0)
+    std::cout << "add g ret: " << ret << std::endl;
+    if (ret == 0)
     {
         strcpy(neck.command, "vaddgsucc");
         sr.sendMsg(fd, neck, groupName);
@@ -246,20 +248,20 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
 {
     VioletProtNeck neck = {};
     int ret = loginCenter.vcreateGroup(reqName, groupName);
-    if(ret < 0)
+    if (ret < 0)
     {
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    if(ret == 0)
+    if (ret == 0)
     {
         strcpy(neck.command, "vcrtgsucc");
         sr.sendMsg(fd, neck, groupName);
         return;
     }
-    if(ret == 1)
+    if (ret == 1)
     {
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("exists");
@@ -268,37 +270,38 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
     }
 }
 
-void Server::vlogin(int fd, std::string username, std::string password) {
+void Server::vlogin(int fd, std::string username, std::string password)
+{
     memset(&u, 0, sizeof(u));
     std::string userinfo;
     int ret = loginCenter.vlogin(username, password, userinfo);
-    if(ret < 0)
+    if (ret < 0)
     {
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char*)"vloginerr");
+        strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    if(ret == 2)
+    if (ret == 2)
     {
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char*)"vloginerr");
+        strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("incorrect");
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    for(const auto &it : u.friends)
+    for (const auto &it : u.friends)
     {
-        std::cout<< it <<std::endl;
+        std::cout << it << std::endl;
     }
-    for(const auto &it : u.groups)
+    for (const auto &it : u.groups)
     {
-        std::cout<< it <<std::endl;
+        std::cout << it << std::endl;
     }
     VioletProtNeck neck = {};
-    strcpy(neck.command, (const char*)"vloginsucc");
+    strcpy(neck.command, (const char *)"vloginsucc");
     memcpy(neck.username, username.c_str(), sizeof(neck.username));
-    std::cout<< "ser recv: " << userinfo <<std::endl;
+    std::cout << "ser recv: " << userinfo << std::endl;
     sr.sendMsg(fd, neck, userinfo);
 }

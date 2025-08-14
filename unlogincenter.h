@@ -11,10 +11,12 @@ class UnloginCenter
 {
 public:
     UnloginCenter();
+
 private:
     int sock;
     SRHelper sr;
     static std::list<int> onlineUnlogin;
+
 public:
     void sendBordcast(int, std::string);
     void addNewUnlogin(int fd);
