@@ -85,13 +85,13 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         // vector<map<string, sql::SQLString>> query
         if (password != std::string(row.at("password").c_str()))
         {
+            auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
             if(ret == std::nullopt)
             {
                 std::cout<< "redis execute error on login" <<std::endl;
             }
             return -2;
         }
-        auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
     std::vector<sql::SQLString> fparams = {username, username};
