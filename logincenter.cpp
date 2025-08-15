@@ -102,11 +102,10 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                                  fparams);
     for (const auto &irow : friInfo)
     {
-        if (username != irow.at("username"))
+        if (username != std::string(irow.at("username").c_str()))
         {
-            std::cout<< "a test debug output, if you seen this, using row.at('x') with string is good" <<std::endl;
             //返回好友列表的同时，对所有在线好友广播上线
-            u.friends.push_back(irow.at("username"));
+            u.friends.push_back(std::string(irow.at("username").c_str));
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
             {
@@ -129,9 +128,10 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                 params);
     for (const auto &row : groupInfo)
     {
-        u.groups.push_back(row.at("gname"));
+        u.groups.push_back(std::string(row.at("gname").c_str()));
         //维护群组在线用户列表
-        updateOnlineGUMap(row.at("gname"), fd);
+        updateOnlineGUMap(std::string(row.at("gname").c_str()), fd);
+        std::cout<< "debug login gum: " << onlineGUMap.size() <<std::endl;
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
