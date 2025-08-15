@@ -349,7 +349,7 @@ void LoginCenter::vofflineHandle(int fd)
             auto vit = onlineGUMap.find(it);
             if(vit != onlineGUMap.end())
             {
-                std::cout<< "offline found vit: " << vit <<std::endl;
+                std::cout<< "offline found vit: " << vit->first <<std::endl;
                 std::set<int> &tmpset = vit->second;
                 tmpset.erase(fd);
             }
