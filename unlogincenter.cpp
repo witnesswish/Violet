@@ -45,8 +45,7 @@ void UnloginCenter::addNewUnlogin(int fd)
 
 void UnloginCenter::removeUnlogin(int fd)
 {
-    onlineUnlogin.remove_if([fd](int x)
-                            { return x == fd; });
+    onlineUnlogin.remove_if([fd](int x){ return x == fd; });
     std::cout << "remove #" << fd << " remain: " << onlineUnlogin.size() << std::endl;
 }
 void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)

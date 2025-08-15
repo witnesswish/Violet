@@ -7,6 +7,7 @@
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
 std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
+std::map<std::string, int> LoginCenter::onlineUser{};
 LoginCenter::LoginCenter()
     : mariadb(setMariadb().m_user,
               setMariadb().m_password,
@@ -73,8 +74,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         return -1;
     }
     std::vector<sql::SQLString> params = {username};
-    auto ret = mariadb.query(
-                "select uid, username, nickname, password, salt, avat from user where username=?;", params);
+    auto ret = mariadb.query("select uid, username, nickname, password, salt, avat from user where username=?;", params);
     // 如果查出来的数据不是一条或者0条，那就是数据库大概率出问题了
     if (ret.size() != 1)
     {
@@ -87,18 +87,16 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         {
             return -2;
         }
-            auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
-            if(ret == std::nullopt)
-            {
-                std::cout<< "redis execute error on login" <<std::endl;
-            }
+        auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
+        if(ret == std::nullopt)
+        {
+            std::cout<< "redis execute error on login" <<std::endl;
+        }
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
     std::vector<sql::SQLString> fparams = {username, username};
-    auto friInfo = mariadb.query("SELECT DISTINCT u.username AS friend_name FROM user_friend f "
-                                 "JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
-                                 "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) "
-                                 "OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
+    auto friInfo = mariadb.query("SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
+                                 "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
                                  fparams);
     for (const auto &irow : friInfo)
     {
@@ -131,11 +129,17 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         u.groups.push_back(std::string(row.at("gname").c_str()));
         //维护群组在线用户列表
         updateOnlineGUMap(std::string(row.at("gname").c_str()), fd);
-        std::cout<< "debug login gum: " << onlineGUMap.size() <<std::endl;
+        //std::cout<< "debug login gum: " << onlineGUMap.size() <<std::endl;
+        auto ret = redis.execute("LPUSH %s %s", username.c_str(), std::string(row.at("gname").c_str()));
+        if(ret == std::nullopt)
+        {
+            std::cout<< "redis execute error on vofflineHandle" <<std::endl;
+        }
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
-    // std::cout<< "sizeof info: " << userinfo <<std::endl;
+    // update online user
+    onlineUser[fd] = username;
     return 0;
 }
 
@@ -240,7 +244,7 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
             std::cout << "gid: " << gid << std::endl;
         }
         std::vector<sql::SQLString> xparams = {groupName, reqName};
-        bool v_ret = mariadb.execute("INSERT INTO group_member (gid, uid) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?));",
+        bool v_ret = mariadb.execute("INSERT INTO group_member (gid, uid, grole) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?), 'owner');",
                                      iparams);
         // std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
         return 0;
@@ -274,14 +278,17 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
     auto it = onlineGUMap.find(groupName);
     if(it != onlineGUMap.end())
     {
-        std::cout<< "find group: " << it->first <<std::endl;
+        //std::cout<< "find group: " << it->first <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, "vgcb");
         memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
         std::set<int> &tmp = it->second;
         for (int it : tmp)
         {
-            sr.sendMsg(it, neck, content);
+            if(it != fd)
+            {
+                sr.sendMsg(it, neck, content);
+            }
         }
     }
     else
@@ -291,6 +298,67 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
         std::string tmp("group not found");
         sr.sendMsg(fd, neck, tmp);
+    }
+}
+
+/**
+ * @brief LoginCenter::vofflineHandle
+ * @param fd
+ * 下线要做的事情：1. 给好友发送下线通知 2. 将用户fd从群组在线删除
+ * 再多维护一个在线用户列表
+ */
+void LoginCenter::vofflineHandle(int fd)
+{
+    const std::string tmpname;
+    const std::string tmpcount;
+    auto it = onlineUser.find(fd);
+    if(it != onlineUser.end())
+    {
+        tmpname = it->second;
+        onlineUser.erase(fd);
+    }
+    //auto git = onlineGUMap.find()
+    auto ret3 = redis.execute("LLEN %s", tmpname);
+    if(ret3 == std::nullopt)
+    {
+        std::cout<< "redis execute error on vofflineHandle" <<std::endl;
+    }
+    else
+    {
+        //optional<vector<string>>
+        for(auto &it : ret3.value())
+        {
+            tmpcount = it;
+        }
+    }
+    auto ret4 = redis.execute("LRANGE %s 0 %", tmpname.c_str(), tmpcount.c_str());
+    if(ret4 == std::nullopt)
+    {
+        std::cout<< "redis execute error on vofflineHandle" <<std::endl;
+    }
+    else
+    {
+        for(auto &it : ret4.value())
+        {
+            //onlineGUMap: map<string, set<int>>
+            auto vit = onlineGUMap.find(it);
+            if(vit != onlineGUMap.end())
+            {
+                std::set<int> tmpset = it->second;
+                tmpset.erase(fd);
+            }
+        }
+    }
+    auto ret2 = redis.execute("HDEL %s fd id stat", tmpname);
+    if(ret2 == std::nullopt)
+    {
+        std::cout<< "redis execute error on vofflineHandle" <<std::endl;
+    }
+    std::string trname = tmpname + std::string("group");
+    auto ret1 = redis.execute("DEL %s", trname);
+    if(ret1 == std::nullopt)
+    {
+        std::cout<< "redis execute error on vofflineHandle" <<std::endl;
     }
 }
 

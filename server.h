@@ -13,6 +13,7 @@
 #include <list>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <chrono>
 
 #include "common.h"
 #include "protocol.h"
@@ -53,6 +54,7 @@ private:
     void vcreateGroup(int fd, std::string reqName, std::string groupName);
     void vprivateChat(int fd, std::string reqName, std::string friName, std::string content);
     void vgroupChat(int fd, std::string reqName, std::string gname, std::string content);
+    void vofflineHandle(int fd);
 };
 
 #endif // SERVER_H

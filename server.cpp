@@ -6,10 +6,12 @@ Server::Server()
     epfd = 0;
     serAddr.sin_port = htons(3434);
     serAddr.sin_addr.s_addr = INADDR_ANY;
+    redis.connectRedis("127.0.0.1", 6379);
 }
 Server::~Server()
 {
     closeServer();
+    redis.disconnectRedis();
 }
 int Server::getRecvSize(int fd)
 {
@@ -108,7 +110,9 @@ void Server::startServer()
                         // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
                         else if (ret->header.length == 0)
                         {
+                            //HMSET %s fd %s id %s stat %s
                             unlogin.removeUnlogin(fd);
+                            vofflineHandle(fd);
                             bytesReady = 1;
                         }
                         else
@@ -146,6 +150,10 @@ void Server::startServer()
                                 if(command == "vpc")
                                 {
                                     vprivateChat(fd, username, password, content);
+                                }
+                                if(command == "vgc")
+                                {
+                                    vgroupChat(fd, username, password, content);
                                 }
                             }
                             if (ret->neck.unlogin)
@@ -280,11 +288,24 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
     VioletProtNeck neck = {};
     int friId = loginCenter.vprivateChat(friName);
     std::cout<< "login return fid: " << friId <<std::endl;
-    if(friId < 3)
+    if(friId < 0)
     {
         strcpy(neck.command, "vpcerr");
-        std::string tmp("notonline");
+        std::string tmp("user not online, message will be sent after user online");
         sr.sendMsg(fd, neck, tmp);
+
+        // 下面是做缓存，缓冲用redis的sorted set来做，zadd 用户名 时间戳 拼接后的消息
+        // 拼接消息的格式：发送者|消息内容
+        // 发送的时候按次取出消息，做解拼接处理，一次取20条，取完之后，zcard key做判断还有没有数据，循环
+        auto c = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(c);
+        std::string tmptime = std::to_string(t);
+        const std::string tmpstr = reqName + "|" + content;
+        auto ret = redis.execute("ZADD %s %s %s", friName.c_str(), tmptime.c_str(), tmpstr.c_str());
+        if(ret == std::nullopt)
+        {
+            std::cout<< "redis execute error on prichat offline" <<std::endl;
+        }
         return;
     }
     strcpy(neck.command, "vpcb");
@@ -294,7 +315,12 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
 
 void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::string content)
 {
-    vgroupChat(fd, reqName, gname, content);
+    loginCenter.vgroupChat(fd, reqName, gname, content);
+}
+
+void Server::vofflineHandle(int fd)
+{
+    loginCenter.vofflineHandle(fd);
 }
 
 void Server::vlogin(int fd, std::string username, std::string password)
@@ -331,4 +357,133 @@ void Server::vlogin(int fd, std::string username, std::string password)
     memcpy(neck.name, username.c_str(), sizeof(neck.name));
     //std::cout << "ser recv: " << userinfo << std::endl;
     sr.sendMsg(fd, neck, userinfo);
+
+    std::string tmpnum;
+    auto ret1 = redis.execute("ZCARD %s", username);
+    if(ret1 == std::nullopt)
+    {
+        std::cout<< "redis execute error on login get offline msg" <<std::endl;
+    }
+    else
+    {
+        //optional<vector<string>>
+        for(auto &it : ret1.value())
+        {
+            tmpnum = it;
+        }
+    }
+    auto tmpx = std::stoi(tmpnum);
+    std::cout<< "tmpx: " << tmpx <<std::endl;
+    while(tmpx > 0)
+    {
+        if(tmpx-20 > 0)
+        {
+            //auto ret2 = redis.execute("ZRANG %s 0 20 WITHSCORES", username.c_str()); //if you need timestamp, with option withscores
+            auto ret2 = redis.execute("ZRANG %s 0 20", username.c_str());
+            if(ret2 == std::nullopt)
+            {
+                std::cout<< "redis execute error on login get offline msg" <<std::endl;
+            }
+            else
+            {
+                //optional<vector<string>>
+                for(auto &it : ret2.value())
+                {
+                    auto pos = it->find('|');
+                    if(pos > 0 && pos < it->size())
+                    {
+                        std::string from = it->substr(0, pos);
+                        std::string content = it->substr(pos);
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "vpcache");
+                        memcpy(neck.name, from.c_str(), sizeof(neck.name));
+                        //std::cout << "ser recv: " << userinfo << std::endl;
+                        sr.sendMsg(fd, neck, content);
+                    }
+                }
+            }
+            tmpx = tmpx - 20;
+        }
+        else if(tmpx-10 > 0)
+        {
+            auto ret2 = redis.execute("ZRANG %s 0 10", username.c_str());
+            if(ret2 == std::nullopt)
+            {
+                std::cout<< "redis execute error on login get offline msg" <<std::endl;
+            }
+            else
+            {
+                //optional<vector<string>>
+                for(auto &it : ret2.value())
+                {
+                    auto pos = it->find('|');
+                    if(pos > 0 && pos < it->size())
+                    {
+                        std::string from = it->substr(0, pos);
+                        std::string content = it->substr(pos);
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "vpcache");
+                        memcpy(neck.name, from.c_str(), sizeof(neck.name));
+                        //std::cout << "ser recv: " << userinfo << std::endl;
+                        sr.sendMsg(fd, neck, content);
+                    }
+                }
+            }
+            tmpx = tmpx - 10;
+        }
+        else if(tmpx-5 > 0)
+        {
+            auto ret2 = redis.execute("ZRANG %s 0 5", username.c_str());
+            if(ret2 == std::nullopt)
+            {
+                std::cout<< "redis execute error on login get offline msg" <<std::endl;
+            }
+            else
+            {
+                //optional<vector<string>>
+                for(auto &it : ret2.value())
+                {
+                    auto pos = it->find('|');
+                    if(pos > 0 && pos < it->size())
+                    {
+                        std::string from = it->substr(0, pos);
+                        std::string content = it->substr(pos);
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "vpcache");
+                        memcpy(neck.name, from.c_str(), sizeof(neck.name));
+                        //std::cout << "ser recv: " << userinfo << std::endl;
+                        sr.sendMsg(fd, neck, content);
+                    }
+                }
+            }
+            tmpx = tmpx - 5;
+        }
+        else
+        {
+            auto ret2 = redis.execute("ZRANG %s 0 1", username.c_str());
+            if(ret2 == std::nullopt)
+            {
+                std::cout<< "redis execute error on login get offline msg" <<std::endl;
+            }
+            else
+            {
+                //optional<vector<string>>
+                for(auto &it : ret2.value())
+                {
+                    auto pos = it->find('|');
+                    if(pos > 0 && pos < it->size())
+                    {
+                        std::string from = it->substr(0, pos);
+                        std::string content = it->substr(pos);
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "vpcache");
+                        memcpy(neck.name, from.c_str(), sizeof(neck.name));
+                        //std::cout << "ser recv: " << userinfo << std::endl;
+                        sr.sendMsg(fd, neck, content);
+                    }
+                }
+            }
+            tmpx = tmpx - 1;
+        }
+    }
 }

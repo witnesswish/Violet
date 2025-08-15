@@ -49,6 +49,7 @@ public:
     int vcreateGroup(std::string reqName, std::string groupName);
     int vprivateChat(std::string firName);
     void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content);
+    void vofflineHandle(int fd);
     Madb setMariadb();
 
 private:
@@ -56,6 +57,7 @@ private:
     MariadbHelper mariadb;
     RedisHelper redis;
     static std::map<std::string, std::set<int>> onlineGUMap;
+    static std::map<int, std::string> onlineUser;
 private:
     std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);
     std::pair<std::vector<std::string>, std::vector<std::string>> deserializeVectors(const std::string &data);
