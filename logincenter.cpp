@@ -281,7 +281,8 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         //std::cout<< "find group: " << it->first <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, "vgcb");
-        memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+        memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
+        memcpy(neck.pass, requestName.c_str(), sizeof(neck.pass));
         std::set<int> &tmp = it->second;
         for (int it : tmp)
         {
