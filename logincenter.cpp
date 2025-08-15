@@ -7,7 +7,7 @@
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
 std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
-std::map<std::string, int> LoginCenter::onlineUser{};
+std::map<int, std::string> LoginCenter::onlineUser{};
 LoginCenter::LoginCenter()
     : mariadb(setMariadb().m_user,
               setMariadb().m_password,
@@ -130,7 +130,8 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         //维护群组在线用户列表
         updateOnlineGUMap(std::string(row.at("gname").c_str()), fd);
         //std::cout<< "debug login gum: " << onlineGUMap.size() <<std::endl;
-        auto ret = redis.execute("LPUSH %s %s", username.c_str(), std::string(row.at("gname").c_str()));
+        std::string tmpgn = username + "grp";
+        auto ret = redis.execute("LPUSH %s %s", tmpgn.c_str(), std::string(row.at("gname").c_str()));
         if(ret == std::nullopt)
         {
             std::cout<< "redis execute error on vofflineHandle" <<std::endl;
@@ -310,16 +311,18 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
  */
 void LoginCenter::vofflineHandle(int fd)
 {
-    const std::string tmpname;
-    const std::string tmpcount;
+    std::string tmpname;
+    std::string tmpcount;
     auto it = onlineUser.find(fd);
     if(it != onlineUser.end())
     {
         tmpname = it->second;
+        std::cout<< "offline found: " << tmpname <<std::endl;
         onlineUser.erase(fd);
     }
     //auto git = onlineGUMap.find()
-    auto ret3 = redis.execute("LLEN %s", tmpname);
+    std::string tmpgn = tmpname + "grp";
+    auto ret3 = redis.execute("LLEN %s", tmpgn);
     if(ret3 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
@@ -332,7 +335,7 @@ void LoginCenter::vofflineHandle(int fd)
             tmpcount = it;
         }
     }
-    auto ret4 = redis.execute("LRANGE %s 0 %", tmpname.c_str(), tmpcount.c_str());
+    auto ret4 = redis.execute("LRANGE %s 0 %s", tmpname.c_str(), tmpcount.c_str());
     if(ret4 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
@@ -345,7 +348,7 @@ void LoginCenter::vofflineHandle(int fd)
             auto vit = onlineGUMap.find(it);
             if(vit != onlineGUMap.end())
             {
-                std::set<int> tmpset = it->second;
+                std::set<int> &tmpset = vit->second;
                 tmpset.erase(fd);
             }
         }

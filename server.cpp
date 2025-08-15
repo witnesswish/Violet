@@ -301,7 +301,8 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
         std::time_t t = std::chrono::system_clock::to_time_t(c);
         std::string tmptime = std::to_string(t);
         const std::string tmpstr = reqName + "|" + content;
-        auto ret = redis.execute("ZADD %s %s %s", friName.c_str(), tmptime.c_str(), tmpstr.c_str());
+        std::string tmpname = friName + "msgcache";
+        auto ret = redis.execute("ZADD %s %s %s", tmpname.c_str(), tmptime.c_str(), tmpstr.c_str());
         if(ret == std::nullopt)
         {
             std::cout<< "redis execute error on prichat offline" <<std::endl;
@@ -389,11 +390,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                 //optional<vector<string>>
                 for(auto &it : ret2.value())
                 {
-                    auto pos = it->find('|');
-                    if(pos > 0 && pos < it->size())
+                    auto pos = it.find('|');
+                    if(pos > 0 && pos < it.size())
                     {
-                        std::string from = it->substr(0, pos);
-                        std::string content = it->substr(pos);
+                        std::string from = it.substr(0, pos);
+                        std::string content = it.substr(pos);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -416,11 +417,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                 //optional<vector<string>>
                 for(auto &it : ret2.value())
                 {
-                    auto pos = it->find('|');
-                    if(pos > 0 && pos < it->size())
+                    auto pos = it.find('|');
+                    if(pos > 0 && pos < it.size())
                     {
-                        std::string from = it->substr(0, pos);
-                        std::string content = it->substr(pos);
+                        std::string from = it.substr(0, pos);
+                        std::string content = it.substr(pos);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -443,11 +444,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                 //optional<vector<string>>
                 for(auto &it : ret2.value())
                 {
-                    auto pos = it->find('|');
-                    if(pos > 0 && pos < it->size())
+                    auto pos = it.find('|');
+                    if(pos > 0 && pos < it.size())
                     {
-                        std::string from = it->substr(0, pos);
-                        std::string content = it->substr(pos);
+                        std::string from = it.substr(0, pos);
+                        std::string content = it.substr(pos);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -470,11 +471,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                 //optional<vector<string>>
                 for(auto &it : ret2.value())
                 {
-                    auto pos = it->find('|');
-                    if(pos > 0 && pos < it->size())
+                    auto pos = it.find('|');
+                    if(pos > 0 && pos < it.size())
                     {
-                        std::string from = it->substr(0, pos);
-                        std::string content = it->substr(pos);
+                        std::string from = it.substr(0, pos);
+                        std::string content = it.substr(pos);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
