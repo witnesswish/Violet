@@ -1,6 +1,6 @@
 // #include "mariadbhelper.h"
 // #include "redishelper.h"
-// #include <iostream>
+#include <iostream>
 // #include <vector>
 // #include <optional>
 // #include <string>
@@ -28,3 +28,8 @@
 //     mariadb.disconnectMariadb();
 //     return 0;
 // }
+int main()
+{
+    std::cout<< "hello" <<std::endl;
+    return 0;
+}

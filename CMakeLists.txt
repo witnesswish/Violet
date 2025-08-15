@@ -15,8 +15,7 @@ add_executable(Violet main.cpp
     logincenter.h logincenter.cpp
     readme.md
     redishelper.h redishelper.cpp
-    test.cpp
-    generatedata.cpp)
+    )
 
 include(GNUInstallDirs)
 
@@ -49,7 +48,7 @@ endif()
 
 option(GENERATE_DATA "Build generate executable" OFF)
 if(BUILD_TEST)
-    message(STATUS "Building test executable")
+    message(STATUS "Building generate executable")
 
     # 添加测试可执行文件
     add_executable(generate
@@ -58,7 +57,7 @@ if(BUILD_TEST)
         generatedata.cpp
     )
 
-target_link_libraries(test PRIVATE mariadbcpp hiredis)
+target_link_libraries(generate PRIVATE mariadbcpp hiredis)
 endif()
 # mkdir build && cd build
 # cmake -DBUILD_TEST=ON ..

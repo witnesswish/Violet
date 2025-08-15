@@ -105,7 +105,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         if (username != std::string(irow.at("username").c_str()))
         {
             //返回好友列表的同时，对所有在线好友广播上线
-            u.friends.push_back(std::string(irow.at("username").c_str));
+            u.friends.push_back(std::string(irow.at("username").c_str()));
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
             {
