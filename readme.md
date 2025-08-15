@@ -64,7 +64,10 @@ struct VioletProtNeck
 8. 私聊转发，服务器发送`vpcb`,使用 neck.name 字段带上请求对象用户名
 9. 缓存转发，如果用户登录的时候，有缓存，那么客户端发送`vpcache`带上信息，使用 neck.name 表示发送者
 
-        特别说明：服务器做缓存用redis，将其它消息从尾部
+        特别说明：
+        服务器做缓存用sorted set：zadd 时间戳 friName|content
+        用户拥有的群组用list：lpush username+grp g1 g2 ...
+        用户信息用hash：hpush username fd 1 id 1
 
 #### char name[32]
 - 说明

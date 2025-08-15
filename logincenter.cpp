@@ -335,7 +335,8 @@ void LoginCenter::vofflineHandle(int fd)
             tmpcount = it;
         }
     }
-    auto ret4 = redis.execute("LRANGE %s 0 %s", tmpname.c_str(), tmpcount.c_str());
+    std::cout<< "offline tmpcount: " << tmpcount <<std::endl;
+    auto ret4 = redis.execute("LRANGE %s 0 %s", tmpgn.c_str(), tmpcount.c_str());
     if(ret4 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
@@ -348,18 +349,18 @@ void LoginCenter::vofflineHandle(int fd)
             auto vit = onlineGUMap.find(it);
             if(vit != onlineGUMap.end())
             {
+                std::cout<< "offline found vit: " << vit <<std::endl;
                 std::set<int> &tmpset = vit->second;
                 tmpset.erase(fd);
             }
         }
     }
-    auto ret2 = redis.execute("HDEL %s fd id stat", tmpname);
+    auto ret2 = redis.execute("DEL %s", tmpname);
     if(ret2 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
     }
-    std::string trname = tmpname + std::string("group");
-    auto ret1 = redis.execute("DEL %s", trname);
+    auto ret1 = redis.execute("DEL %s", tmpgn.c_str());
     if(ret1 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
