@@ -6,7 +6,7 @@
  * 2. 在用户登录的时候，把用户信息存到redis，用hash存 hmset 登陆者 username name fd 7 id 1，私聊的时候hget 登陆者 fd获取fd转发，如果没有找到，再想想怎么存消息，计划用redis list
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
-std::map<std::string, std::set<int>> LoginCenter::onlineGUMap;
+std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
 LoginCenter::LoginCenter()
     : mariadb(setMariadb().m_user,
               setMariadb().m_password,
@@ -102,17 +102,17 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                                  fparams);
     for (const auto &irow : friInfo)
     {
-        if (username != std::string(irow.at("username").c_str()))
+        if (username != irow.at("username").asStdString())
         {
             //返回好友列表的同时，对所有在线好友广播上线
-            u.friends.push_back(std::string(irow.at("username")));
-            auto ret= redis.execute("HGET %s fd", std::string(irow.at("username")));
+            u.friends.push_back(irow.at("username").asStdString());
+            auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
             {
                 for(auto it : ret.value())
                 {
                     VioletProtNeck neck = {};
-                    strcpy(neck.command, (const char *)"vbul");
+                    strcpy(neck.command, "vbul");
                     strcpy(neck.name, username.c_str());
                     std::string tmp("violet");
                     sr.sendMsg(std::stoi(it), neck, tmp);
@@ -128,9 +128,9 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                 params);
     for (const auto &row : groupInfo)
     {
-        u.groups.push_back(std::string(row.at("gname")));
+        u.groups.push_back(row.at("gname").asStdString());
         //维护群组在线用户列表
-        updateOnlineGUMap(std::string(row.at("gname")), fd);
+        updateOnlineGUMap(row.at("gname").asStdString(), fd);
     }
     mariadb.disconnectMariadb();
     userinfo = serializeTwoVector(u.friends, u.groups);
@@ -258,7 +258,6 @@ int LoginCenter::vprivateChat(std::string friName)
     {
         for(auto &it : ret.value())
         {
-            std::cout<< "vpc f: " << it <<std::endl;
             if(std::stoi(it))
             {
                 return std::stoi(it);
@@ -273,6 +272,7 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
     auto it = onlineGUMap.find(groupName);
     if(it != onlineGUMap.end())
     {
+        std::cout<< "find group: " << it->first <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, "vgcb");
         memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
@@ -281,6 +281,14 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         {
             sr.sendMsg(it, neck, content);
         }
+    }
+    else
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vgcerr");
+        memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+        std::string tmp("group not found");
+        sr.sendMsg(fd, neck, tmp);
     }
 }
 

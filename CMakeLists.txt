@@ -14,7 +14,9 @@ add_executable(Violet main.cpp
     protocol.cpp
     logincenter.h logincenter.cpp
     readme.md
-    redishelper.h redishelper.cpp)
+    redishelper.h redishelper.cpp
+    test.cpp
+    generatedata.cpp)
 
 include(GNUInstallDirs)
 
@@ -31,7 +33,7 @@ install(TARGETS Violet
 )
 
 # 条件编译test
-option(BUILD_TEST "Build test executable" OFF)
+option(TEST "Build test executable" OFF)
 if(BUILD_TEST)
     message(STATUS "Building test executable")
 
@@ -40,6 +42,20 @@ if(BUILD_TEST)
         mariadbhelper.h mariadbhelper.cpp
         redishelper.h redishelper.cpp
         test.cpp
+    )
+
+target_link_libraries(test PRIVATE mariadbcpp hiredis)
+endif()
+
+option(GENERATE_DATA "Build generate executable" OFF)
+if(BUILD_TEST)
+    message(STATUS "Building test executable")
+
+    # 添加测试可执行文件
+    add_executable(generate
+        mariadbhelper.h mariadbhelper.cpp
+        redishelper.h redishelper.cpp
+        generatedata.cpp
     )
 
 target_link_libraries(test PRIVATE mariadbcpp hiredis)
