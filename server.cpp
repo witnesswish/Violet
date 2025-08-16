@@ -338,7 +338,25 @@ void Server::vlogin(int fd, std::string username, std::string password)
         sr.sendMsg(fd, neck, tmp);
         return;
     }
+    if(ret == 1)
+    {
+        std::cout<< "login failure, function return: " << ret <<std::endl;
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vloginerr");
+        std::string tmp("incorrect");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     if (ret == 2)
+    {
+        std::cout<< "login failure, function return: " << ret <<std::endl;
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vloginerr");
+        std::string tmp("incorrect");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(ret == 3)
     {
         std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
