@@ -241,7 +241,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 {
     VioletProtNeck neck = {};
-    int ret = loginCenter.vaddGroup(reqName, groupName);
+    int ret = loginCenter.vaddGroup(reqName, groupName, fd);
     std::cout << "add g ret: " << ret << std::endl;
     if (ret == 0)
     {
@@ -260,7 +260,7 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
 {
     VioletProtNeck neck = {};
-    int ret = loginCenter.vcreateGroup(reqName, groupName);
+    int ret = loginCenter.vcreateGroup(reqName, groupName, fd);
     if (ret < 0)
     {
         strcpy(neck.command, "vcrtgerr");

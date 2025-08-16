@@ -164,9 +164,9 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
         return -1;
     }
     std::vector<sql::SQLString> params = {requestName, requestName, friName, friName};
-    auto ret = mariadb.query("SELECT * FROM user_friend uf WHERE (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
-                             "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) AND (uf.uid1 IN (SELECT uid FROM user "
-                             "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))",
+    auto ret = mariadb.query("SELECT * FROM user_friend uf WHERE ((uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
+                             "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))) AND ((uf.uid1 IN (SELECT uid FROM user "
+                             "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)))",
                              params);
     std::cout<< "add f: " << ret.size() <<std::endl;
     if (ret.size() == 1)
@@ -180,6 +180,23 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
                         "VALUES"
                         " ((SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?));",
                         iparams);
+        auto c = redis.execute("HGET %s fd", friName.c_str());
+        if(c != std::nullopt)
+        {
+            for(auto &d : c.value())
+            {
+                if(std::stoi(d))
+                {
+                    //
+                    VioletProtNeck neck = {};
+                    strcpy(neck.command, "vafed");
+                    memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+                    std::string tmp("violet");
+                    sr.sendMsg(std::stoi(d), neck, tmp);
+                    std::cout<< "send add fri to fri success" <<std::endl;
+                }
+            }
+        }
         return 0;
     }
     else
@@ -189,14 +206,14 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
     return -1;
 }
 
-int LoginCenter::vaddGroup(std::string reqName, std::string groupName)
+int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
 {
     if (mariadb.connectMariadb() < 0)
     {
         return -1;
     }
     // SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
-    std::vector<sql::SQLString> params = {reqName, groupName};
+    std::vector<sql::SQLString> params = {groupName, reqName};
     auto ret = mariadb.query("SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
                              "AND (uid IN (SELECT uid FROM user WHERE username=?));",
                              params);
@@ -213,6 +230,7 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName)
                                      "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
                                      iparams);
         // std::cout<< "debug log add g insert: " << m_ret << "--" << groupName <<std::endl;
+        updateOnlineGUMap(groupName, fd);
         return 0;
     }
     else
@@ -222,7 +240,7 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName)
     return -1;
 }
 
-int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
+int LoginCenter::vcreateGroup(std::string reqName, std::string groupName, int fd)
 {
     if (mariadb.connectMariadb() < 0)
     {
@@ -242,8 +260,12 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = mariadb.execute("INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
                                      iparams);
+        if(!m_ret)
+        {
+            std::cout<< "error on create group insert" <<std::endl;
+        }
         auto gid = mariadb.getLastInsertId();
-        if (gid == 0)
+        if (gid)
         {
             // 备注：下次测试看这个函数是不是工作正常，正常的话可以直接修改sql插入id，不用查一遍表
             // 测试完就把这条注释删掉
@@ -253,6 +275,7 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName)
         bool v_ret = mariadb.execute("INSERT INTO group_member (gid, uid, grole) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?), 'owner');",
                                      iparams);
         // std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
+        updateOnlineGUMap(groupName, fd);
         return 0;
     }
     else
