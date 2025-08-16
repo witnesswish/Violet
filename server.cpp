@@ -331,6 +331,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
     int ret = loginCenter.vlogin(fd, username, password, userinfo);
     if (ret < 0)
     {
+        std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("violet");
@@ -339,6 +340,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
     }
     if (ret == 2)
     {
+        std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("incorrect");
@@ -356,9 +358,10 @@ void Server::vlogin(int fd, std::string username, std::string password)
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char *)"vloginsucc");
     memcpy(neck.name, username.c_str(), sizeof(neck.name));
-    //std::cout << "ser recv: " << userinfo << std::endl;
     sr.sendMsg(fd, neck, userinfo);
+    std::cout<< "login success, user: " << username <<std::endl;
 
+    //get cache and send
     std::string tmpnum;
     std::string tmpname = username + "msgcache";
     auto ret1 = redis.execute("ZCARD %s", tmpname.c_str());
@@ -396,7 +399,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     if(pos > 0 && pos < it.size())
                     {
                         std::string from = it.substr(0, pos);
-                        std::string content = it.substr(pos);
+                        std::string content = it.substr(pos + 1);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -404,6 +407,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         sr.sendMsg(fd, neck, content);
                     }
                 }
+            }
+            auto ret = redis.execute("ZREMRANGEBYRANK %s 0 19", tmpname.c_str());
+            if(ret == std::nullopt)
+            {
+                std::cout<< "redis execute error on login at del 20" <<std::endl;
             }
             tmpx = tmpx - 20;
         }
@@ -432,6 +440,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     }
                 }
             }
+            auto ret = redis.execute("ZREMRANGEBYRANK %s 0 9", tmpname.c_str());
+            if(ret == std::nullopt)
+            {
+                std::cout<< "redis execute error on login  at del 10" <<std::endl;
+            }
             tmpx = tmpx - 10;
         }
         else if(tmpx-5 >= 0)
@@ -459,6 +472,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     }
                 }
             }
+            auto ret = redis.execute("ZREMRANGEBYRANK %s 0 4", tmpname.c_str());
+            if(ret == std::nullopt)
+            {
+                std::cout<< "redis execute error on login  at del 5" <<std::endl;
+            }
             tmpx = tmpx - 5;
         }
         else
@@ -485,6 +503,11 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         sr.sendMsg(fd, neck, content);
                     }
                 }
+            }
+            auto ret = redis.execute("ZREMRANGEBYRANK %s 0 0", tmpname.c_str());
+            if(ret == std::nullopt)
+            {
+                std::cout<< "redis execute error on login  at del 1" <<std::endl;
             }
             tmpx = tmpx - 1;
         }

@@ -57,6 +57,12 @@ private:
     SRHelper sr;
     MariadbHelper mariadb;
     RedisHelper redis;
+    /**
+     * @brief onlineGUMap 群组在线用户，登录的时候加入fd，下线的时候删除fd，
+     * @brief onlineUserFriend 用户的在线好友，
+     * 用户上线-》广播登录-》存入在线好友列表
+     * 用户离线-》广播下线-》删除好友列表
+     */
     static std::map<std::string, std::set<int>> onlineGUMap;
     static std::map<std::string, std::list<int>> onlineUserFriend;
     static std::map<int, std::string> onlineUser;
