@@ -55,43 +55,13 @@ enum MessageTypes
 class Msg
 {
 public:
+    Msg();
+public:
     VioletProtHeader header = {};
     VioletProtNeck neck = {};
     std::vector<char> content;
-    std::vector<char> serialize() const
-    {
-        std::vector<char> packet(sizeof(VioletProtHeader) + sizeof(VioletProtNeck) + content.size());
-        memcpy(packet.data(), &header, sizeof(header));
-        memcpy(packet.data() + sizeof(VioletProtHeader), &neck, sizeof(neck));
-        if (!content.empty())
-        {
-            memcpy(packet.data() + sizeof(VioletProtHeader) + sizeof(VioletProtNeck), content.data(), content.size());
-        }
-        return packet;
-    }
-    static std::optional<Msg> deserialize(const char *data, size_t length)
-    {
-        if (length < sizeof(VioletProtHeader))
-            return std::nullopt;
-        Msg msg;
-        memcpy(&msg.header, data, sizeof(msg.header));
-        memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
-        if (ntohl(msg.header.magic) != 0x43484154)
-        {
-            return std::nullopt;
-        }
-        size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
-        if (length < excepted_len)
-        {
-            return std::nullopt;
-        }
-        size_t body_len = ntohl(msg.header.length);
-        if (body_len > 0)
-        {
-            msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
-        }
-        return msg;
-    }
+    std::vector<char> serialize() const;
+    static std::optional<Msg> deserialize(const char *data, size_t length);
 };
 class SRHelper
 {

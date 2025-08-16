@@ -132,3 +132,44 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
     return Msg::deserialize(recvBuffer.data(), recvBuffer.size());
 }
+
+Msg::Msg()
+{
+    content.reserve(8000);
+}
+
+std::vector<char> Msg::serialize() const
+{
+    std::vector<char> packet(sizeof(VioletProtHeader) + sizeof(VioletProtNeck) + content.size());
+    memcpy(packet.data(), &header, sizeof(header));
+    memcpy(packet.data() + sizeof(VioletProtHeader), &neck, sizeof(neck));
+    if (!content.empty())
+    {
+        memcpy(packet.data() + sizeof(VioletProtHeader) + sizeof(VioletProtNeck), content.data(), content.size());
+    }
+    return packet;
+}
+
+std::optional<Msg> Msg::deserialize(const char *data, size_t length)
+{
+    if (length < sizeof(VioletProtHeader))
+        return std::nullopt;
+    Msg msg;
+    memcpy(&msg.header, data, sizeof(msg.header));
+    memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
+    if (ntohl(msg.header.magic) != 0x43484154)
+    {
+        return std::nullopt;
+    }
+    size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
+    if (length < excepted_len)
+    {
+        return std::nullopt;
+    }
+    size_t body_len = ntohl(msg.header.length);
+    if (body_len > 0)
+    {
+        msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
+    }
+    return msg;
+}
