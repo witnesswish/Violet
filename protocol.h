@@ -58,6 +58,7 @@ public:
     VioletProtHeader header = {};
     VioletProtNeck neck = {};
     std::vector<char> content;
+    content.reserve(10000);
     std::vector<char> serialize() const
     {
         std::vector<char> packet(sizeof(VioletProtHeader) + sizeof(VioletProtNeck) + content.size());
