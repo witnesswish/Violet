@@ -7,6 +7,7 @@
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
 std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
+std::map<std::string, std::list<int>> LoginCenter::onlineUserFriend{};
 std::map<int, std::string> LoginCenter::onlineUser{};
 LoginCenter::LoginCenter()
     : mariadb(setMariadb().m_user,
@@ -114,6 +115,10 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                     strcpy(neck.name, username.c_str());
                     std::string tmp("violet");
                     sr.sendMsg(std::stoi(it), neck, tmp);
+                    onlineUserFriend.clear();
+                    std::list<int> tmpList;
+                    tmpList.push_back(std::stoi(it));
+                    onlineUserFriend[username] = tmpList;
                     std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << it <<std::endl;
                 }
             }
@@ -320,9 +325,25 @@ void LoginCenter::vofflineHandle(int fd)
         std::cout<< "offline found: " << tmpname <<std::endl;
         onlineUser.erase(fd);
     }
+    auto ouf = onlineUserFriend.find(tmpname);
+    if(ouf != onlineUserFriend.end())
+    {
+        std::list<int> &tmplist = ouf->second;
+        for(auto j=tmplist.begin(); j!=tmplist.end(); ++j)
+        {
+
+            VioletProtNeck neck = {};
+            strcpy(neck.command, "vbol");
+            memcpy(neck.name, tmpname.c_str(), sizeof(neck.name));
+            std::string tmp("violet");
+            sr.sendMsg(*j, neck, tmp);
+            std::cout<< "send offline msg on offliehandle for: " << *j <<std::endl;
+        }
+    }
+    onlineUserFriend.erase(tmpname);
     //auto git = onlineGUMap.find()
     std::string tmpgn = tmpname + "grp";
-    auto ret3 = redis.execute("LLEN %s", tmpgn);
+    auto ret3 = redis.execute("LLEN %s", tmpgn.c_str());
     if(ret3 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;
@@ -332,6 +353,7 @@ void LoginCenter::vofflineHandle(int fd)
         //optional<vector<string>>
         for(auto &it : ret3.value())
         {
+            std::cout<< "offline grp name ccutn: " << it <<std::endl;
             tmpcount = it;
         }
     }
@@ -355,7 +377,7 @@ void LoginCenter::vofflineHandle(int fd)
             }
         }
     }
-    auto ret2 = redis.execute("DEL %s", tmpname);
+    auto ret2 = redis.execute("DEL %s", tmpname.c_str());
     if(ret2 == std::nullopt)
     {
         std::cout<< "redis execute error on vofflineHandle" <<std::endl;

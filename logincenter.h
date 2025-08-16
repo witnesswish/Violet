@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <sys/socket.h>
+#include <list>
 
 #include "mariadbhelper.h"
 #include "protocol.h"
@@ -57,6 +58,7 @@ private:
     MariadbHelper mariadb;
     RedisHelper redis;
     static std::map<std::string, std::set<int>> onlineGUMap;
+    static std::map<std::string, std::list<int>> onlineUserFriend;
     static std::map<int, std::string> onlineUser;
 private:
     std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);

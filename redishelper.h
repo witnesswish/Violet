@@ -49,6 +49,7 @@ public:
         }
         if (reply->type == REDIS_REPLY_INTEGER)
         {
+            std::cout<< "read interger from redis: " << reply->integer <<std::endl;
             std::string intmp = std::to_string(reply->integer);
             result.push_back(intmp);
             freeReplyObject(reply);
@@ -64,18 +65,21 @@ public:
         }
         if (reply->type == REDIS_REPLY_NIL)
         {
+            std::cout<< "read nil from redis, close it" <<std::endl;
             freeReplyObject(reply);
             return std::nullopt;
         }
         if(reply->type == REDIS_REPLY_STATUS)
         {
             std::string vstatus(reply->str, reply->len);
+            std::cout<< "read status from redis: " << vstatus <<std::endl;
             result.push_back(vstatus);
             freeReplyObject(reply);
             return result;
         }
         if (reply->type == REDIS_REPLY_ARRAY)
         {
+            std::cout<< "read array from redis, array num: " << reply->elements <<std::endl;
             for (size_t i = 0; i < reply->elements; ++i)
             {
                 redisReply *childReply = reply->element[i];

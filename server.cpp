@@ -361,7 +361,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
 
     std::string tmpnum;
     std::string tmpname = username + "msgcache";
-    auto ret1 = redis.execute("ZCARD %s", tmpname);
+    auto ret1 = redis.execute("ZCARD %s", tmpname.c_str());
     if(ret1 == std::nullopt)
     {
         std::cout<< "redis execute error on login get offline msg" <<std::endl;
@@ -371,6 +371,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         //optional<vector<string>>
         for(auto &it : ret1.value())
         {
+            std::cout<< "read num of msgcache on login: " << it <<std::endl;
             tmpnum = it;
         }
     }
@@ -381,7 +382,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         if(tmpx-20 >= 0)
         {
             //auto ret2 = redis.execute("ZRANG %s 0 20 WITHSCORES", username.c_str()); //if you need timestamp, with option withscores
-            auto ret2 = redis.execute("ZRANG %s 0 20", tmpname.c_str());
+            auto ret2 = redis.execute("ZRANGE %s 0 20", tmpname.c_str());
             if(ret2 == std::nullopt)
             {
                 std::cout<< "redis execute error on login get offline msg" <<std::endl;
@@ -408,7 +409,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         }
         else if(tmpx-10 >= 0)
         {
-            auto ret2 = redis.execute("ZRANG %s 0 10", tmpname.c_str());
+            auto ret2 = redis.execute("ZRANGE %s 0 10", tmpname.c_str());
             if(ret2 == std::nullopt)
             {
                 std::cout<< "redis execute error on login get offline msg" <<std::endl;
@@ -435,7 +436,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         }
         else if(tmpx-5 >= 0)
         {
-            auto ret2 = redis.execute("ZRANG %s 0 5", tmpname.c_str());
+            auto ret2 = redis.execute("ZRANGE %s 0 5", tmpname.c_str());
             if(ret2 == std::nullopt)
             {
                 std::cout<< "redis execute error on login get offline msg" <<std::endl;
@@ -462,7 +463,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         }
         else
         {
-            auto ret2 = redis.execute("ZRANG %s 0 1", tmpname.c_str());
+            auto ret2 = redis.execute("ZRANGE %s 0 1", tmpname.c_str());
             if(ret2 == std::nullopt)
             {
                 std::cout<< "redis execute error on login get offline msg" <<std::endl;
