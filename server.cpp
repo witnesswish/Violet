@@ -125,7 +125,9 @@ void Server::startServer()
                                 std::string username(ret->neck.name);
                                 std::string password(ret->neck.pass);
                                 std::string ccdemail(ret->neck.email);
-                                std::string content(ret->content.begin(), ret->content.end());
+                                std::string content;
+                                content.reserve(ret->content.size()+10);  // 预分配内存
+                                content.assign(ret->content.begin(), ret->content.end());
                                 std::cout << command << "-" << username << "-" << password << "-" << content << std::endl;
                                 if (command == "vreg")
                                 {
