@@ -48,6 +48,10 @@ int LoginCenter::vregister(std::string username,
                            std::string salt)
 {
     std::vector<sql::SQLString> params = {username.c_str()};
+    if(!mariadb.isConnected())
+    {
+        mariadb.connectMariadb();
+    }
     auto ret = mariadb.query("select username from user where username=?;", params);
     if (ret.size() > 1 || ret.size() != 0)
     {

@@ -450,7 +450,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     if(pos > 0 && pos < it.size())
                     {
                         std::string from = it.substr(0, pos);
-                        std::string content = it.substr(pos);
+                        std::string content = it.substr(pos+1);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -482,7 +482,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     if(pos > 0 && pos < it.size())
                     {
                         std::string from = it.substr(0, pos);
-                        std::string content = it.substr(pos);
+                        std::string content = it.substr(pos+1);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
@@ -500,7 +500,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         }
         else
         {
-            auto ret2 = redis.execute("ZRANGE %s 0 1", tmpname.c_str());
+            auto ret2 = redis.execute("ZRANGE %s 0 0", tmpname.c_str());
             if(ret2 == std::nullopt)
             {
                 std::cout<< "redis execute error on login get offline msg" <<std::endl;
@@ -514,7 +514,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                     if(pos > 0 && pos < it.size())
                     {
                         std::string from = it.substr(0, pos);
-                        std::string content = it.substr(pos);
+                        std::string content = it.substr(pos+1);
                         VioletProtNeck neck = {};
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));

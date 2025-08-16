@@ -26,6 +26,7 @@ int MariadbHelper::connectMariadb()
 {
     if (m_conn)
     {
+        std::cout<< "database connected" <<std::endl;
         return 0;
     }
     try
@@ -101,6 +102,7 @@ bool MariadbHelper::execute(const std::string &sql, const std::vector<sql::SQLSt
 {
     if (!m_conn)
     {
+        std::cout<< "error on execute sql, " <<std::endl;
         return false;
     }
     std::unique_ptr<sql::PreparedStatement> stmnt(m_conn->prepareStatement(sql));
