@@ -53,8 +53,9 @@ struct VioletProtNeck
         说明一下，群组可以直接创建，也就是说，可以有一个人的群组
 1. 注册，客户端发送`vreg`加信息申请注册，服务器回复`vregsucc`表示成功，`vregerr`表示失败，
 2. 登录，客户端发送`vlogin`加信息，服务器回复`vloginsucc`表示成功，同时带上群组和好友信息，`vloginerr`代表失败
-3. 加好友，客户端发送`vaddf`加信息，服务器回复`vaddfsucc`
-4. 加群组，客户端发送`vaddg`加信息，
+3. 加好友，客户端发送`vaddf`加信息，服务器回复`vaddfsucc`,
+3. 好友申请，服务器发送`vafed`给申请对象，neck.name带上对方用户名
+4. 添加群组，客户端发送`vaddg`加信息，neck.name带上自己用户名，content带上群组名
 5. 创建群组，客户端发送`vcrtg`加信息，
 6. 上线广播，服务器发送`vbul`加信息,广播里 neck.name 字段带用户名
 6. 下线广播，服务器发送`vbol`，neck.name带用户名
