@@ -231,6 +231,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
     }
     else
     {
+        std::cout<< "add friend error, function return: " << ret <<std::endl;
         strcpy(neck.command, "vaddferr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp);

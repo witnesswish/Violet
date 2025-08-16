@@ -168,7 +168,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
                              "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)) AND (uf.uid1 IN (SELECT uid FROM user "
                              "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))",
                              params);
-    // std::cout<< "add f: " << ret.size() <<std::endl;
+    std::cout<< "add f: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
         return 0;
