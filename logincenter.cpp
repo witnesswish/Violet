@@ -40,7 +40,7 @@ LoginCenter::~LoginCenter()
  * @brief LoginCenter::vregister
  * @param username
  * @param password
- * @return 0 for normal, 1 for user exists
+ * @return 0 for normal, 1 for user exists, 2 for email exists
  */
 int LoginCenter::vregister(std::string username,
                            std::string password,
@@ -52,16 +52,31 @@ int LoginCenter::vregister(std::string username,
     {
         mariadb.connectMariadb();
     }
-    auto ret = mariadb.query("select username from user where username=?;", params);
-    if (ret.size() > 1 || ret.size() != 0)
+    auto ret = mariadb.query("select username, email from user where username=?;", params);
+    if (ret.size() > 1)
     {
         return 1;
     }
-    std::vector<sql::SQLString> iparams = {username, username, email, password, salt};
-    mariadb.execute(
-                "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);",
-                iparams);
-    return 0;
+    if(ret.size() == 1)
+    {
+        for(const auto &row : ret)
+        {
+            if(email == std::string(row.at("email").c_str()))
+            {
+                return 2;
+            }
+        }
+        return 1;
+    }
+    if(ret.size() == 0)
+    {
+        std::vector<sql::SQLString> iparams = {username, username, email, password, salt};
+        mariadb.execute(
+                    "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);",
+                    iparams);
+        return 0;
+    }
+    return -1;
 }
 
 /**

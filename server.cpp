@@ -7,6 +7,9 @@ Server::Server()
     serAddr.sin_port = htons(3434);
     serAddr.sin_addr.s_addr = INADDR_ANY;
     redis.connectRedis("127.0.0.1", 6379);
+    emailreg = std::regex("(^[a-zA-Z0-9-_]+@[a-zA-Z0-9-_]+(\\.[a-zA-Z0-9-_]+)+)");
+    //说明，最多10个中文
+    namereg = std::regex("[a-zA-z0-9\u4e00-\u9fa5]{1,30}");
 }
 Server::~Server()
 {
@@ -207,6 +210,22 @@ void Server::closeServer()
 
 void Server::vregister(int fd, std::string username, std::string password, std::string email)
 {
+    if(!regex_match(email, emailreg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vregerr");
+        std::string tmp("email type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(!regex_match(username, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vregerr");
+        std::string tmp("name type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     int ret = loginCenter.vregister(username, password, email, "salt");
     if (ret < 0)
     {
@@ -216,14 +235,53 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         sr.sendMsg(fd, neck, tmp);
         return;
     }
+    if(ret == 1)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vregerr");
+        std::string tmp("username exists");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(ret == 2)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vregerr");
+        std::string tmp("email exists");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(ret == 0)
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vregsucc");
+        std::string tmp("violet");
+        sr.sendMsg(fd, neck, tmp);
+    }
     VioletProtNeck neck = {};
-    strcpy(neck.command, (const char *)"vregsucc");
+    strcpy(neck.command, (const char *)"vregerr");
     std::string tmp("violet");
     sr.sendMsg(fd, neck, tmp);
 }
 
 void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 {
+    if(!regex_match(friName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vaddferr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(!regex_match(reqName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vaddferr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     VioletProtNeck neck = {};
     int ret = loginCenter.vaddFriend(reqName, friName);
     if (ret == 0)
@@ -242,6 +300,22 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
 
 void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 {
+    if(!regex_match(groupName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vaddgerr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(!regex_match(reqName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, (const char *)"vaddgerr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     VioletProtNeck neck = {};
     int ret = loginCenter.vaddGroup(reqName, groupName, fd);
     std::cout << "add g ret: " << ret << std::endl;
@@ -261,6 +335,22 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
 
 void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
 {
+    if(!regex_match(groupName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vcrtgerr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    if(!regex_match(reqName, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vcrtgerr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     VioletProtNeck neck = {};
     int ret = loginCenter.vcreateGroup(reqName, groupName, fd);
     if (ret < 0)
@@ -329,6 +419,15 @@ void Server::vofflineHandle(int fd)
 
 void Server::vlogin(int fd, std::string username, std::string password)
 {
+    //只需要拦截用户名，密码我的后续计划是在前端进行一次加密，再传输，先不写规则
+    if(!regex_match(username, namereg))
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vcrtgerr");
+        std::string tmp("type error");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
     memset(&u, 0, sizeof(u));
     std::string userinfo;
     int ret = loginCenter.vlogin(fd, username, password, userinfo);

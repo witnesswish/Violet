@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <chrono>
+#include <regex>
 
 #include "common.h"
 #include "protocol.h"
@@ -43,6 +44,8 @@ private:
     struct sockaddr_in serAddr;
     User u;
     RedisHelper redis;
+    std::regex emailreg;
+    std::regex namereg;
 
 private:
     void init();
