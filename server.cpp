@@ -342,6 +342,7 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
         memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
         std::string tmp("group not exists");
         sr.sendMsg(fd, neck, tmp);
+        return;
     }
     strcpy(neck.command, "vaddgerr");
     std::string tmp("violet");

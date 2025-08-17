@@ -206,7 +206,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
             // for next version, delete if next version is come
             for(const auto &it : retfri)
             {
-                friuid = retfri.at("uid");
+                friuid = std::string(it.at("uid").c_str());
             }
         }
         std::vector<sql::SQLString> iparams = {requestName, friName, requestName};
@@ -270,7 +270,7 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
             // for next version, delete if next version is come
             for(const auto &it : retfri)
             {
-                grpuid = retfri.at("uid");
+                grpuid = std::string(it.at("gid").c_str());
             }
         }
         // std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
