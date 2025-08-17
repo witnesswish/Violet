@@ -172,7 +172,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
  * @brief LoginCenter::vaddFriend
  * @param requestName
  * @param friName
- * @return
+ * @return 0 for normal, 1 for fri not exists
  * 理论上来说插入好友关系的时候，应该固定好小的id在前还是大的id在前，不过没关系啦，我写的sql够复杂
  * 我写这段话只是希望下次我看到的时候把这里改一下，这样应该好查一点
  */
@@ -194,6 +194,21 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
     }
     else if (ret.size() == 0)
     {
+        std::vector<sql::SQLString> friparams = {friName};
+        auto retfri = mariadb.query("SELECT uid FROM user WHERE username=?;",friparams);
+        std::string friuid;
+        if(retfri.size() != 1)
+        {
+            return 1;
+        }
+        else
+        {
+            // for next version, delete if next version is come
+            for(const auto &it : retfri)
+            {
+                friuid = retfri.at("uid");
+            }
+        }
         std::vector<sql::SQLString> iparams = {requestName, friName, requestName};
         mariadb.execute("INSERT INTO user_friend (uid1, uid2, reqid) "
                         "VALUES"
@@ -239,10 +254,25 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
     // std::cout<< "add g query ret: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
-        return 1;
+        return 0;
     }
     else if (ret.size() == 0)
     {
+        std::vector<sql::SQLString> grpparams = {groupName};
+        auto retfri = mariadb.query("SELECT gid FROM user_group WHERE gname=?;",grpparams);
+        std::string grpuid;
+        if(retfri.size() != 1)
+        {
+            return 1;
+        }
+        else
+        {
+            // for next version, delete if next version is come
+            for(const auto &it : retfri)
+            {
+                grpuid = retfri.at("uid");
+            }
+        }
         // std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = mariadb.execute("INSERT INTO group_member (gid, uid) VALUES "

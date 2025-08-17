@@ -287,15 +287,23 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
     if (ret == 0)
     {
         strcpy(neck.command, "vaddfsucc");
+        memcpy(neck.name, friName.c_str(), sizeof(neck.name));
         sr.sendMsg(fd, neck, friName);
+        return;
     }
-    else
+    if(ret == 1)
     {
         std::cout<< "add friend error, function return: " << ret <<std::endl;
         strcpy(neck.command, "vaddferr");
-        std::string tmp("violet");
+        memcpy(neck.name, friName.c_str(), sizeof(neck.name));
+        std::string tmp = std::string("friend you add is not exists: ") + friName;
         sr.sendMsg(fd, neck, tmp);
+        return;
     }
+    std::cout<< "add friend error, function return: " << ret <<std::endl;
+    strcpy(neck.command, "vaddferr");
+    std::string tmp("violet");
+    sr.sendMsg(fd, neck, tmp);
 }
 
 void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
@@ -322,15 +330,20 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
     if (ret == 0)
     {
         strcpy(neck.command, "vaddgsucc");
+        memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
         sr.sendMsg(fd, neck, groupName);
         return;
     }
-    else
+    if(ret == 1)
     {
         strcpy(neck.command, "vaddgerr");
-        std::string tmp("violet");
+        memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
+        std::string tmp("group not exists");
         sr.sendMsg(fd, neck, tmp);
     }
+    strcpy(neck.command, "vaddgerr");
+    std::string tmp("violet");
+    sr.sendMsg(fd, neck, tmp);
 }
 
 void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
