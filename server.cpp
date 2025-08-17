@@ -10,6 +10,7 @@ Server::Server()
     emailreg = std::regex("(^[a-zA-Z0-9-_]+@[a-zA-Z0-9-_]+(\\.[a-zA-Z0-9-_]+)+)");
     //说明，最多10个中文
     namereg = std::regex("[a-zA-z0-9\u4e00-\u9fa5]{1,30}");
+    running = true;
 }
 Server::~Server()
 {
@@ -64,7 +65,7 @@ void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
     init();
-    while (1)
+    while (running)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
         if (epoll_events_count < 0)
@@ -202,6 +203,7 @@ void Server::startServer()
 }
 void Server::closeServer()
 {
+    running = false;
     if (epfd)
         close(epfd);
     if (sock)

@@ -46,6 +46,7 @@ private:
     RedisHelper redis;
     std::regex emailreg;
     std::regex namereg;
+    bool running;
 
 private:
     void init();
