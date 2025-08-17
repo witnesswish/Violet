@@ -438,7 +438,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
     if(!regex_match(username, namereg))
     {
         VioletProtNeck neck = {};
-        strcpy(neck.command, "vcrtgerr");
+        strcpy(neck.command, "vloginerr");
         std::string tmp("type error");
         sr.sendMsg(fd, neck, tmp);
         return;
