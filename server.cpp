@@ -145,14 +145,14 @@ void Server::startServer()
                     {
                         ret = sr.recvMsg(fd, -1);
                     }
-                    if(ret->header.checksum < ret->header.length)
+                    if((ssize_t)ret->header.checksum < (ssize_t)ret->header.length)
                     {
                         UserRecvBuffer urbf;
                         urbf.fd = fd;
-                        urbf.expectLen = ret->header.length;
-                        urbf.actuaLen = ret->header.checksum;
+                        urbf.expectLen = (ssize_t)ret->header.length;
+                        urbf.actuaLen = (ssize_t)ret->header.checksum;
                         urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << ret->header.length
+                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << (ssize_t)ret->header.length
                                  <<" recv: " << ret->header.checksum <<std::endl;
                         continue;
                     }

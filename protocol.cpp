@@ -259,7 +259,7 @@ std::vector<char> Msg::serialize() const
     return packet;
 }
 
-std::optional<Msg> Msg::deserialize(const char *data, size_t length)
+std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
 {
     std::cout<< "deserialize length: " << length <<std::endl;
     if (length < sizeof(VioletProtHeader))
@@ -272,18 +272,18 @@ std::optional<Msg> Msg::deserialize(const char *data, size_t length)
         return std::nullopt;
     }
     size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
-    size_t body_len = ntohl(msg.header.length);
-    if (length < excepted_len)
-    {
-
-        return std::nullopt;
-    }
+    size_t body_len = length - sizeof(msg.header) - sizeof(msg.neck);
+    std::cout<< "deserialize body_len: " << body_len << " actuall bodylen: " << ntohl(msg.header.length);
+    //size_t body_len = ntohl(msg.header.length);
+    // if (length < excepted_len)
+    // {
+    //     return std::nullopt;
+    // }
     if (body_len > 0)
     {
         msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
     }
-    std::cout<< "deserialize msg header length: " << msg.header.length <<std::endl;
-    msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.header) - sizeof(msg.neck);
+    msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.neck) - sizeof(msg.header);
     std::cout<< "deserialize msg header length: " << ntohl(msg.header.length) <<std::endl;
     return msg;
 }

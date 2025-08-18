@@ -61,7 +61,7 @@ public:
     VioletProtNeck neck = {};
     std::vector<char> content;
     std::vector<char> serialize() const;
-    static std::optional<Msg> deserialize(const char *data, size_t length);
+    static std::optional<Msg> deserialize(const char *data, ssize_t length);
 };
 class SRHelper
 {
