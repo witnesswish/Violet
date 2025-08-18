@@ -56,7 +56,7 @@ private:
     std::regex emailreg;
     std::regex namereg;
     bool running;
-    std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
+    static std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
 
 private:
     void init();

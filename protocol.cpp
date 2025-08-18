@@ -272,11 +272,12 @@ std::optional<Msg> Msg::deserialize(const char *data, size_t length)
         return std::nullopt;
     }
     size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
+    size_t body_len = ntohl(msg.header.length);
     if (length < excepted_len)
     {
+
         return std::nullopt;
     }
-    size_t body_len = ntohl(msg.header.length);
     if (body_len > 0)
     {
         msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);

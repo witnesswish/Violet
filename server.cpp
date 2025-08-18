@@ -1,5 +1,7 @@
 #include "server.h"
 
+std::unordered_map<int, UserRecvBuffer> Server::userRecvBuffMap;
+
 Server::Server()
 {
     sock = 0;
@@ -142,6 +144,17 @@ void Server::startServer()
                     else
                     {
                         ret = sr.recvMsg(fd, -1);
+                    }
+                    if(ret->header.checksum < ret->header.length)
+                    {
+                        UserRecvBuffer urbf;
+                        urbf.fd = fd;
+                        urbf.expectLen = ret->header.length;
+                        urbf.actuaLen = ret->header.checksum;
+                        urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << ret->header.length
+                                 <<" recv: " << ret->header.checksum <<std::endl;
+                        continue;
                     }
                     if (ret == std::nullopt)
                     {
