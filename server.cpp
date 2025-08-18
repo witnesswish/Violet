@@ -101,7 +101,7 @@ void Server::startServer()
                 while (bytesReady > 41 || bytesReady == 0)
                 {
                     std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
-                    std::optional<Msg> ret;
+                    std::optional<Msg> ret=Msg{};
                     auto ixt = userRecvBuffMap.find(fd);
                     if(ixt != userRecvBuffMap.end())
                     {
@@ -118,9 +118,9 @@ void Server::startServer()
                             {
                                 murb.actuaLen += ret->header.checksum;
                                 murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                                if(ret->header.length == 0)
+                                if(ret->header.checksum == 0)
                                 {
-                                    std::cout<< "read special byte, get 0, knicking user out" <<std::endl;\
+                                    std::cout<< "read special byte, get 0, knicking user out" <<std::endl;
                                     unlogin.removeUnlogin(fd);
                                     vofflineHandle(fd);
                                     bytesReady = 1;
@@ -128,15 +128,20 @@ void Server::startServer()
                                 if(murb.actuaLen < murb.expectLen)
                                 {
                                     continue;
+                                    bytesReady = 1;
                                 }
                                 else
                                 {
-                                    ret = Msg::deserialize(murb.recvBuffer.data(), murb.expectLen);
+                                    //ret = Msg::deserialize(murb.recvBuffer.data(), murb.expectLen+sizeof(ret->header)+sizeof(ret->neck));
+                                    ret = Msg::deserialize(murb.recvBuffer.data(), murb.recvBuffer.size());
+                                    userRecvBuffMap.erase(fd);
+                                    bytesReady = 1;
                                 }
                             }
                             else
                             {
                                 std::cout<< "read special byte error, contunie" <<std::endl;
+                                bytesReady = 1;
                                 continue;
                             }
                         }
@@ -144,16 +149,28 @@ void Server::startServer()
                     else
                     {
                         ret = sr.recvMsg(fd, -1);
+                        std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
                     }
-                    if((ssize_t)ret->header.checksum < (ssize_t)ret->header.length)
+                    if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
                     {
+                        if(!ret.has_value())
+                        {
+                            std::cout<< "ret empty" <<std::endl;
+                        }
+                        else
+                            std::cout<< "ret not empty" <<std::endl;
                         UserRecvBuffer urbf;
                         urbf.fd = fd;
-                        urbf.expectLen = (ssize_t)ret->header.length;
-                        urbf.actuaLen = (ssize_t)ret->header.checksum;
-                        urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << (ssize_t)ret->header.length
+                        urbf.expectLen = ntohl(ret->header.length);
+                        urbf.actuaLen = ret->header.checksum;
+                        urbf.recvBuffer = ret.value().serialize();
+                        //memcpy(urbf.recvBuffer.data(), &(ret->header), sizeof(ret->header));
+                        //memcpy(urbf.recvBuffer.data()+sizeof(ret->header), &(ret->neck), sizeof(ret->neck));
+                        //urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                        userRecvBuffMap[fd] = urbf;
+                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << ntohl(ret->header.length)
                                  <<" recv: " << ret->header.checksum <<std::endl;
+                        bytesReady = 1;
                         continue;
                     }
                     if (ret == std::nullopt)
@@ -162,7 +179,7 @@ void Server::startServer()
                     }
                     else
                     {
-                        if (ret->header.length == 1)
+                        if (ntohl(ret->header.length) == 1)
                         {
                             bytesReady = 1;
                         }

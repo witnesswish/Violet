@@ -92,14 +92,14 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
     std::cout<< "byte readable in socket: " << byteReadable <<std::endl;
     if(byteToRead > 0)
     {
-        std::optional<Msg> spByteRead;
+        Msg spByteRead;
         std::vector<char> recvBuffer(byteToRead);
         ssize_t totalRead = 0;
         ssize_t len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
         totalRead = len;
         if(len < 0)
         {
-            std::cout << "read " << byteToRead << "failure, return nullopt" <<std::endl;
+            std::cout << "read " << byteToRead << " failure, return nullopt" <<std::endl;
             return std::nullopt;
         }
         else if(len == 0)
@@ -134,14 +134,15 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
                 }
             }
             std::cout<< "read special byte complete after while, read: " << totalRead <<std::endl;
-            spByteRead->header.checksum = totalRead;
-            spByteRead->content.assign(recvBuffer.begin(), recvBuffer.end());
+            spByteRead.header.checksum = totalRead;
+            spByteRead.content.assign(recvBuffer.begin(), recvBuffer.end());
+            return spByteRead;
         }
         else
         {
             std::cout<< "read special byte complete, read: " << totalRead <<std::endl;
-            spByteRead->header.checksum = totalRead;
-            spByteRead->content.assign(recvBuffer.begin(), recvBuffer.end());
+            spByteRead.header.checksum = totalRead;
+            spByteRead.content.assign(recvBuffer.begin(), recvBuffer.end());
         }
         return spByteRead;
     }
@@ -172,7 +173,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
         {
             Msg msg = {};
             std::cout << "read on nonblock" << std::endl;
-            msg.header.length = 1;
+            msg.header.length = htonl(1);
             msg.header.checksum = 1;
             return msg;
         }
@@ -222,13 +223,13 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
             tmp = tmp - len;
             if(len < 0)
             {
-                std::cout<< "contunie read error len: " << len << " actual total recv: " << totalRecv << " of bytes";
+                std::cout<< "contunie read error len: " << len << " actual total recv: " << totalRecv << " of bytes" <<std::endl;
                 break;
             }
             else
             {
                 totalRecv = totalRecv + len;
-                std::cout<< "contunie read len: " << len << " actual total recv: " << totalRecv << " of bytes";
+                std::cout<< "contunie read len: " << len << " actual total recv: " << totalRecv << " of bytes" <<std::endl;
             }
         }
     }
@@ -269,11 +270,12 @@ std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
     memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
     if (ntohl(msg.header.magic) != 0x43484154)
     {
+        std::cout<< "header magic bnumber error, return nullopt" <<std::endl;
         return std::nullopt;
     }
     size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
     size_t body_len = length - sizeof(msg.header) - sizeof(msg.neck);
-    std::cout<< "deserialize body_len: " << body_len << " actuall bodylen: " << ntohl(msg.header.length);
+    std::cout<< "deserialize body_len: " << body_len << " actuall bodylen: " << ntohl(msg.header.length) <<std::endl;
     //size_t body_len = ntohl(msg.header.length);
     // if (length < excepted_len)
     // {
@@ -284,6 +286,6 @@ std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
         msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
     }
     msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.neck) - sizeof(msg.header);
-    std::cout<< "deserialize msg header length: " << ntohl(msg.header.length) <<std::endl;
+    std::cout<< "deserialize msg header length: " << (msg.header.length) <<std::endl;
     return msg;
 }

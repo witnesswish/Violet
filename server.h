@@ -33,6 +33,17 @@ struct  UserRecvBuffer
      ssize_t expectLen;
      ssize_t actuaLen;
      std::vector<char> recvBuffer;
+
+     std::vector<char> serialize() const
+     {
+         std::vector<char> packet(sizeof(fd)+sizeof(expectLen)+sizeof(actuaLen)+recvBuffer.size());
+         memcpy(packet.data(), &fd, sizeof(fd));
+         memcpy(packet.data()+sizeof(fd), &expectLen, sizeof(expectLen));
+         memcpy(packet.data()+sizeof(fd)+sizeof(expectLen), &actuaLen, sizeof(actuaLen));
+         if(!recvBuffer.empty())
+             memcpy(packet.data()+sizeof(fd)+sizeof(expectLen)+sizeof(actuaLen), recvBuffer.data(), recvBuffer.size());
+         return packet;
+     }
 };
 
 class Server
