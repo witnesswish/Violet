@@ -82,6 +82,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
     VioletProtHeader header;
     VioletProtNeck neck;
     ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
+    std::cout << "peek len: " << len << " of recv" << std::endl;
     if (len == 0)
     {
         close(fd);
@@ -121,10 +122,16 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
     }
     uint32_t contentLen = ntohl(header.length);
     uint32_t totaLen = contentLen + sizeof(header) + sizeof(neck);
+    std::cout << "total len to malloc " << totaLen << " of recv" << std::endl;
     std::vector<char> recvBuffer(totaLen);
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
     std::cout << "read " << len << " bytes from socket buffer" << std::endl;
-    if (len != static_cast<ssize_t>(recvBuffer.size()))
+    if (len = static_cast<ssize_t>(recvBuffer.size()))
+    {
+        std::cout << "recv the wrong len" << std::endl;
+        return std::nullopt;
+    }
+    else (len != static_cast<ssize_t>(recvBuffer.size()))
     {
         std::cout << "recv the wrong len" << std::endl;
         return std::nullopt;
