@@ -121,6 +121,47 @@ void Server::startServer()
                         }
                         else
                         {
+                            if(ret->header.checksum != ret->header.length)
+                            {
+                                auto it = userRecvBuffMap.find(fd);
+                                if(it != userRecvBuffMap.end())
+                                {
+                                    UserRecvBuffer &murb = it->second;
+                                    if(murb.expectLen != ret->header.length || murb.fd != fd)
+                                    {
+                                        std::cout<< "something error i don't know if this shown, just tag it, location 1" <<std::endl;
+                                        ret = std::nullopt;
+                                    }
+                                    else
+                                    {
+                                        murb.actuaLen += ret->header.checksum;
+                                        murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                                        if(murb.actuaLen < ret->header.length)
+                                        {
+                                            continue;
+                                        }
+                                        if(murb.actuaLen > ret->header.length)
+                                        {
+                                            std::cout<< "something error i don't know if this shown, just tag it, location 2" <<std::endl;
+                                            ret = std::nullopt;
+                                        }
+                                        if(murb.actuaLen == ret->header.length)
+                                        {
+                                            ret = Msg::deserialize(murb.recvBuffer.data(), ret->header.length);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    UserRecvBuffer urbf = {};
+                                    urbf.fd = fd;
+                                    urbf.actuaLen = ret->header.checksum;
+                                    urbf.expectLen = ret->header.length;
+                                    urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                                    userRecvBuffMap[fd] = urbf;
+                                    continue;
+                                }
+                            }
                             bytesReady = getRecvSize(fd);
                             ret->neck.mfrom = fd;
                             if (!ret->neck.unlogin)

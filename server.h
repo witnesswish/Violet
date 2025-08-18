@@ -26,6 +26,15 @@
  * @brief The Server class
  *
  */
+
+struct  UserRecvBuffer
+{
+     int fd;
+     ssize_t expectLen;
+     ssize_t actuaLen;
+     std::vector<char> recvBuffer;
+};
+
 class Server
 {
 public:
@@ -47,6 +56,7 @@ private:
     std::regex emailreg;
     std::regex namereg;
     bool running;
+    std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
 
 private:
     void init();

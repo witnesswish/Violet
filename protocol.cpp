@@ -92,6 +92,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
         Msg msg = {};
         // 这里我的想法是找一个字段，用来存状态，但是先用这个吧
         msg.header.length = 0;
+        msg.header.checksum = 0;
         return msg;
     }
     if (len < 0)
@@ -102,6 +103,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
             std::cout << "client #" << fd << " crushed, close it" << std::endl;
             Msg msg = {};
             msg.header.length = 0;
+            msg.header.checksum = 0;
             return msg;
         }
         else if (errno == 11)
@@ -109,6 +111,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
             Msg msg = {};
             std::cout << "read on nonblock" << std::endl;
             msg.header.length = 1;
+            msg.header.checksum = 1;
             return msg;
         }
         else
@@ -132,6 +135,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
     std::cout << "read " << len << " bytes from socket buffer" << std::endl;
     std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
     ssize_t tmp;
+    ssize_t totalRecv = len;
     if(totaLen <= (uint32_t)SSIZE_MAX)
     {
         tmp = (ssize_t)totaLen;
@@ -153,6 +157,14 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
             len = recv(fd, recvBuffer.data()+len, tmp-len, 0);
             std::cout<< "contunie read " << len << " of bytes";
             tmp -= len;
+            if(len < 0)
+            {
+                break;
+            }
+            else
+            {
+                totalRecv = totalRecv + len;
+            }
         }
     }
     else
@@ -161,12 +173,12 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
         return std::nullopt;
     }
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
-    return Msg::deserialize(recvBuffer.data(), recvBuffer.size());
+    return Msg::deserialize(recvBuffer.data(), totalRecv);
 }
 
 Msg::Msg()
 {
-    content.reserve(8000);
+    //content.reserve(8000);
 }
 
 std::vector<char> Msg::serialize() const
@@ -187,6 +199,7 @@ std::optional<Msg> Msg::deserialize(const char *data, size_t length)
         return std::nullopt;
     Msg msg;
     memcpy(&msg.header, data, sizeof(msg.header));
+    msg.header.checksum = length;
     memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
     if (ntohl(msg.header.magic) != 0x43484154)
     {
