@@ -72,7 +72,7 @@ public:
     void sendMsg(int fd, VioletProtNeck neck, std::string &content);
     void sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std::string &content);
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
-    std::optional<Msg> recvMsg(int fd);
+    std::optional<Msg> recvMsg(int fd, ssize_t byteToRead);
 };
 
 #endif // PROTOCOL_H

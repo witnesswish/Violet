@@ -82,10 +82,6 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std
 
 std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
 {
-    if(byteToRead > 0)
-    {
-        //
-    }
     VioletProtHeader header;
     VioletProtNeck neck;
     int byteReadable;
@@ -94,6 +90,61 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
         perror("ioctl(fionread) error");
     }
     std::cout<< "byte readable in socket: " << byteReadable <<std::endl;
+    if(byteToRead > 0)
+    {
+        std::optional<Msg> spByteRead;
+        std::vector<char> recvBuffer(byteToRead);
+        ssize_t totalRead = 0;
+        ssize_t len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+        totalRead = len;
+        if(len < 0)
+        {
+            std::cout << "read " << byteToRead << "failure, return nullopt" <<std::endl;
+            return std::nullopt;
+        }
+        else if(len == 0)
+        {
+            std::cout << "read 0, goint to kinck user out" <<std::endl;
+            Msg msg = {};
+            msg.header.length = 0;
+            msg.header.checksum = 0;
+            return msg;
+        }
+        else if(len < byteToRead)
+        {
+            ssize_t tmp = byteToRead - len;
+            while(tmp > 0)
+            {
+                len = recv(fd, recvBuffer.data()+totalRead, recvBuffer.size()-totalRead, 0);
+                if(len < 0)
+                {
+                    break;
+                }
+                else if(len == 0)
+                {
+                    Msg msg = {};
+                    msg.header.length = 0;
+                    msg.header.checksum = 0;
+                    return msg;
+                }
+                else
+                {
+                    tmp = tmp - len;
+                    totalRead += len;
+                }
+            }
+            std::cout<< "read special byte complete after while, read: " << totalRead <<std::endl;
+            spByteRead->header.checksum = totalRead;
+            spByteRead->content.assign(recvBuffer.begin(), recvBuffer.end());
+        }
+        else
+        {
+            std::cout<< "read special byte complete, read: " << totalRead <<std::endl;
+            spByteRead->header.checksum = totalRead;
+            spByteRead->content.assign(recvBuffer.begin(), recvBuffer.end());
+        }
+        return spByteRead;
+    }
     ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
     std::cout << "peek len: " << len << " of recv" << std::endl;
     if (len == 0)

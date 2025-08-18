@@ -99,7 +99,50 @@ void Server::startServer()
                 while (bytesReady > 41 || bytesReady == 0)
                 {
                     std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
-                    auto ret = sr.recvMsg(fd);
+                    std::optional<Msg> ret;
+                    auto ixt = userRecvBuffMap.find(fd);
+                    if(ixt != userRecvBuffMap.end())
+                    {
+                        UserRecvBuffer &murb = ixt->second;
+                        if(murb.fd != fd)
+                        {
+                            std::cout<< "something error i don't know if this shown, just tag it, location 1" <<std::endl;
+                            continue;
+                        }
+                        else
+                        {
+                            ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
+                            if(ret != std::nullopt)
+                            {
+                                murb.actuaLen += ret->header.checksum;
+                                murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                                if(ret->header.length == 0)
+                                {
+                                    std::cout<< "read special byte, get 0, knicking user out" <<std::endl;\
+                                    unlogin.removeUnlogin(fd);
+                                    vofflineHandle(fd);
+                                    bytesReady = 1;
+                                }
+                                if(murb.actuaLen < murb.expectLen)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    ret = Msg::deserialize(murb.recvBuffer.data(), murb.expectLen);
+                                }
+                            }
+                            else
+                            {
+                                std::cout<< "read special byte error, contunie" <<std::endl;
+                                continue;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ret = sr.recvMsg(fd, -1);
+                    }
                     if (ret == std::nullopt)
                     {
                         std::cout << "sr return null opt" << std::endl;
@@ -121,48 +164,6 @@ void Server::startServer()
                         }
                         else
                         {
-                            if(ret->header.checksum != ntohl(ret->header.length))
-                            {
-                                std::cout<< "checksum != length, goto solve: " << ret->header.checksum << "--" << ret->header.length <<std::endl;
-                                auto it = userRecvBuffMap.find(fd);
-                                if(it != userRecvBuffMap.end())
-                                {
-                                    UserRecvBuffer &murb = it->second;
-                                    if(murb.expectLen != ret->header.length || murb.fd != fd)
-                                    {
-                                        std::cout<< "something error i don't know if this shown, just tag it, location 1" <<std::endl;
-                                        ret = std::nullopt;
-                                    }
-                                    else
-                                    {
-                                        murb.actuaLen += ret->header.checksum;
-                                        murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                                        if(murb.actuaLen < ret->header.length)
-                                        {
-                                            continue;
-                                        }
-                                        if(murb.actuaLen > ret->header.length)
-                                        {
-                                            std::cout<< "something error i don't know if this shown, just tag it, location 2" <<std::endl;
-                                            ret = std::nullopt;
-                                        }
-                                        if(murb.actuaLen == ret->header.length)
-                                        {
-                                            ret = Msg::deserialize(murb.recvBuffer.data(), ret->header.length);
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    UserRecvBuffer urbf = {};
-                                    urbf.fd = fd;
-                                    urbf.actuaLen = ret->header.checksum;
-                                    urbf.expectLen = ret->header.length;
-                                    urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                                    userRecvBuffMap[fd] = urbf;
-                                    continue;
-                                }
-                            }
                             bytesReady = getRecvSize(fd);
                             ret->neck.mfrom = fd;
                             if (!ret->neck.unlogin)
