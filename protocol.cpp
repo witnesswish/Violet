@@ -126,12 +126,15 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
     std::vector<char> recvBuffer(totaLen);
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
     std::cout << "read " << len << " bytes from socket buffer" << std::endl;
-    if (len = static_cast<ssize_t>(recvBuffer.size()))
+    if (len < static_cast<ssize_t>(recvBuffer.size()))
     {
-        std::cout << "recv the wrong len" << std::endl;
-        return std::nullopt;
+        while(totaLen-len > 0)
+        {
+            len = recv(fd, recvBuffer.data()+len, recvBuffer.size()-len, 0);
+            std::cout<< "contunie read " << len << " of bytes";
+        }
     }
-    else (len != static_cast<ssize_t>(recvBuffer.size()))
+    else
     {
         std::cout << "recv the wrong len" << std::endl;
         return std::nullopt;
