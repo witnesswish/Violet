@@ -1,7 +1,6 @@
 #include "protocol.h"
 #include <limits.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
 
 SRHelper::SRHelper() {}
 
@@ -80,20 +79,10 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std
     }
 }
 
-std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
+std::optional<Msg> SRHelper::recvMsg(int fd)
 {
-    if(byteToRead > 0)
-    {
-        //
-    }
     VioletProtHeader header;
     VioletProtNeck neck;
-    int byteReadable;
-    if(ioctl(fd, FIONREAD, &byteReadable) < 0)
-    {
-        perror("ioctl(fionread) error");
-    }
-    std::cout<< "byte readable in socket: " << byteReadable <<std::endl;
     ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
     std::cout << "peek len: " << len << " of recv" << std::endl;
     if (len == 0)
@@ -156,28 +145,26 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
         std::cout<< "too big number on recvMsg " << totaLen <<std::endl;
         return std::nullopt;
     }
-    if (len == recvBuffer.size())
+    if (len == tmp)
     {
         //do nothing now
-        std::cout<< "len == tmp" <<std::endl;
+        std::cout<< "len == tmp"
     }
     else if (len < tmp)
     {
-        tmp = tmp - len;
-        while(tmp-len >= 0)
+        tmp -= len;
+        while(tmp-len > 0)
         {
             len = recv(fd, recvBuffer.data()+len, tmp-len, 0);
             std::cout<< "contunie read " << len << " of bytes";
-            tmp = tmp - len;
+            tmp -= len;
             if(len < 0)
             {
-                std::cout<< "contunie read error len: " << len << " actual total recv: " << totalRecv << " of bytes";
                 break;
             }
             else
             {
                 totalRecv = totalRecv + len;
-                std::cout<< "contunie read len: " << len << " actual total recv: " << totalRecv << " of bytes";
             }
         }
     }
@@ -187,7 +174,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
         return std::nullopt;
     }
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
-    std::cout<< "actual total recv len of this thime: " << totalRecv << "--" << recvBuffer.size() <<std::endl;
+    std::cout<< "actual total recv len of this thime: " << totalRecv <<std::endl;
     return Msg::deserialize(recvBuffer.data(), totalRecv);
 }
 
@@ -231,7 +218,7 @@ std::optional<Msg> Msg::deserialize(const char *data, size_t length)
         msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
     }
     std::cout<< "deserialize msg header length: " << msg.header.length <<std::endl;
-    msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.header) - sizeof(msg.neck);
-    std::cout<< "deserialize msg header length: " << ntohl(msg.header.length) <<std::endl;
+    msg.header.checksum = static_cast<uint32_t>(length);
+    std::cout<< "deserialize msg header length: " << msg.header.length <<std::endl;
     return msg;
 }

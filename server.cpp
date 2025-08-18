@@ -121,8 +121,9 @@ void Server::startServer()
                         }
                         else
                         {
-                            if(ret->header.checksum != ret->header.length)
+                            if(ret->header.checksum != ntohl(ret->header.length))
                             {
+                                std::cout<< "checksum != length, goto solve: " << ret->header.checksum << "--" << ret->header.length <<std::endl;
                                 auto it = userRecvBuffMap.find(fd);
                                 if(it != userRecvBuffMap.end())
                                 {
