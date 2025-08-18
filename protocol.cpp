@@ -1,4 +1,6 @@
 #include "protocol.h"
+#include <limits.h>
+#include <sys/types.h>
 
 SRHelper::SRHelper() {}
 
@@ -121,17 +123,36 @@ std::optional<Msg> SRHelper::recvMsg(int fd)
         return std::nullopt;
     }
     uint32_t contentLen = ntohl(header.length);
+    std::cout << "content len to malloc " << contentLen << " of recv" << std::endl;
     uint32_t totaLen = contentLen + sizeof(header) + sizeof(neck);
     std::cout << "total len to malloc " << totaLen << " of recv" << std::endl;
     std::vector<char> recvBuffer(totaLen);
+    std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
     std::cout << "read " << len << " bytes from socket buffer" << std::endl;
-    if (len < static_cast<ssize_t>(recvBuffer.size()))
+    std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
+    ssize_t tmp;
+    if(totaLen <= (uint32_t)SSIZE_MAX)
     {
-        while(totaLen-len > 0)
+        tmp = (ssize_t)totaLen;
+    }
+    else
+    {
+        std::cout<< "too big number on recvMsg " << totaLen <<std::endl;
+        return std::nullopt;
+    }
+    if (len == tmp)
+    {
+        //do nothing now
+    }
+    else if (len < tmp)
+    {
+        tmp -= len;
+        while(tmp-len > 0)
         {
-            len = recv(fd, recvBuffer.data()+len, recvBuffer.size()-len, 0);
+            len = recv(fd, recvBuffer.data()+len, tmp-len, 0);
             std::cout<< "contunie read " << len << " of bytes";
+            tmp -= len;
         }
     }
     else
