@@ -115,6 +115,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
             ssize_t tmp = byteToRead - len;
             while(tmp > 0)
             {
+                spByteRead.content.assign(recvBuffer.begin(), recvBuffer.begin()+totalRead);
                 len = recv(fd, recvBuffer.data()+totalRead, recvBuffer.size()-totalRead, 0);
                 if(len < 0)
                 {
@@ -131,18 +132,18 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
                 {
                     tmp = tmp - len;
                     totalRead += len;
+                    spByteRead.content.insert(spByteRead.content.end(), recvBuffer.begin(), recvBuffer.begin()+len);
                 }
             }
             std::cout<< "read special byte complete after while, read: " << totalRead <<std::endl;
             spByteRead.header.checksum = totalRead;
-            spByteRead.content.assign(recvBuffer.begin(), recvBuffer.end());
             return spByteRead;
         }
         else
         {
             std::cout<< "read special byte complete, read: " << totalRead <<std::endl;
             spByteRead.header.checksum = totalRead;
-            spByteRead.content.assign(recvBuffer.begin(), recvBuffer.end());
+            spByteRead.content.assign(recvBuffer.begin(), recvBuffer.begin()+totalRead);
         }
         return spByteRead;
     }
