@@ -14,7 +14,8 @@ LoginCenter::LoginCenter()
     redis.connectRedis("127.0.0.1", 6379);
     std::vector<sql::SQLString> params = {"1"};
     // do not forget to release conn
-    const auto conn = MariadbHelper::getInstance().getConnection();
+    MariadbHelper::getInstance().init("violet", "123456", "127.0.0.1", 3306, "violet", 7);
+    auto conn = MariadbHelper::getInstance().getConnection();
     auto ret = MariadbHelper::getInstance().query(conn, "SELECT DISTINCT gid, gname FROM user_group WHERE 1=?;", params);
     for (const auto &row : ret)
     {
@@ -42,11 +43,11 @@ LoginCenter::~LoginCenter()
 int LoginCenter::vregister(std::string username, std::string password, std::string email, std::string salt)
 {
     std::vector<sql::SQLString> params = {username.c_str()};
-    const auto conn = MariadbHelper::getInstance().getConnection();
-    auto ret = MariadbHelper::getInstance().query(conn, "select username, email from user where username=?;", params);
+    auto conn = MariadbHelper::getInstance().getConnection();
+    auto ret = MariadbHelper::getInstance().query((conn), "select username, email from user where username=?;", params);
     if (ret.size() > 1)
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection((conn));
         return 1;
     }
     if(ret.size() == 1)
@@ -55,21 +56,21 @@ int LoginCenter::vregister(std::string username, std::string password, std::stri
         {
             if(email == std::string(row.at("email").c_str()))
             {
-                MariadbHelper::getInstance().releaseConnection(conn);
+                MariadbHelper::getInstance().releaseConnection((conn));
                 return 2;
             }
         }
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection((conn));
         return 1;
     }
     if(ret.size() == 0)
     {
         std::vector<sql::SQLString> iparams = {username, username, email, password, salt};
-        MariadbHelper::getInstance().execute(conn, "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);", iparams);
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().execute((conn), "insert into user (username, nickname, email, password, salt) values (?, ?, ?, ?, ?);", iparams);
+        MariadbHelper::getInstance().releaseConnection((conn));
         return 0;
     }
-    MariadbHelper::getInstance().releaseConnection(conn);
+    MariadbHelper::getInstance().releaseConnection((conn));
     return -1;
 }
 
@@ -82,14 +83,14 @@ int LoginCenter::vregister(std::string username, std::string password, std::stri
  */
 int LoginCenter::vlogin(int fd, std::string username, std::string password, std::string &userinfo)
 {
-    const auto conn = MariadbHelper::getInstance().getConnection();
+    auto conn = MariadbHelper::getInstance().getConnection();
     User u;
     std::vector<sql::SQLString> params = {username};
-    auto ret = MariadbHelper::getInstance().query(conn, "select uid, username, nickname, password, salt, avat from user where username=?;", params);
+    auto ret = MariadbHelper::getInstance().query((conn), "select uid, username, nickname, password, salt, avat from user where username=?;", params);
     // 如果查出来的数据不是一条或者0条，那就是数据库大概率出问题了
     if (ret.size() != 1)
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection((conn));
         return 1;
     }
     for (const auto &row : ret)
@@ -97,7 +98,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         // vector<map<string, sql::SQLString>> query
         if (password != std::string(row.at("password").c_str()))
         {
-            MariadbHelper::getInstance().releaseConnection(conn);
+            MariadbHelper::getInstance().releaseConnection(std::move(conn));
             return -2;
         }
         auto ret = redis.execute("HMSET %s fd %s id %s stat %s", row.at("username").c_str(), std::to_string(fd).c_str(), row.at("uid").c_str(), (const char *)"normal");
@@ -108,7 +109,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
     std::vector<sql::SQLString> fparams = {username, username};
-    auto friInfo = MariadbHelper::getInstance().query(conn, "SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
+    auto friInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
                                  "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
                                  fparams);
     for (const auto &irow : friInfo)
@@ -137,7 +138,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
             //std::cout << irow.at("username") << std::endl;
         }
     }
-    auto groupInfo = MariadbHelper::getInstance().query(conn, "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
+    auto groupInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
                 "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
                 params);
     for (const auto &row : groupInfo)
@@ -153,7 +154,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
             std::cout<< "redis execute error on vofflineHandle" <<std::endl;
         }
     }
-    MariadbHelper::getInstance().releaseConnection(conn);
+    MariadbHelper::getInstance().releaseConnection(std::move(conn));
     userinfo = serializeTwoVector(u.friends, u.groups);
     // update online user
     onlineUser[fd] = username;
@@ -170,26 +171,26 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
  */
 int LoginCenter::vaddFriend(std::string requestName, std::string friName)
 {
-    const auto conn = MariadbHelper::getInstance().getConnection();
+    auto conn = MariadbHelper::getInstance().getConnection();
     std::vector<sql::SQLString> params = {requestName, requestName, friName, friName};
-    auto ret = MariadbHelper::getInstance().query(conn, "SELECT * FROM user_friend uf WHERE ((uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
+    auto ret = MariadbHelper::getInstance().query(std::move(conn), "SELECT * FROM user_friend uf WHERE ((uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
                              "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))) AND ((uf.uid1 IN (SELECT uid FROM user "
                              "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)))",
                              params);
     std::cout<< "add f: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 0;
     }
     else if (ret.size() == 0)
     {
         std::vector<sql::SQLString> friparams = {friName};
-        auto retfri = MariadbHelper::getInstance().query(conn, "SELECT uid FROM user WHERE username=?;",friparams);
+        auto retfri = MariadbHelper::getInstance().query(std::move(conn), "SELECT uid FROM user WHERE username=?;",friparams);
         std::string friuid;
         if(retfri.size() != 1)
         {
-            MariadbHelper::getInstance().releaseConnection(conn);
+            MariadbHelper::getInstance().releaseConnection(std::move(conn));
             return 1;
         }
         else
@@ -201,7 +202,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
             }
         }
         std::vector<sql::SQLString> iparams = {requestName, friName, requestName};
-        MariadbHelper::getInstance().execute(conn, "INSERT INTO user_friend (uid1, uid2, reqid) "
+        MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO user_friend (uid1, uid2, reqid) "
                         "VALUES"
                         " ((SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?));",
                         iparams);
@@ -222,40 +223,40 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
                 }
             }
         }
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 0;
     }
     else
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return -1;
     }
-    MariadbHelper::getInstance().releaseConnection(conn);
+    MariadbHelper::getInstance().releaseConnection(std::move(conn));
     return -1;
 }
 
 int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
 {
-    const auto conn = MariadbHelper::getInstance().getConnection();
+    auto conn = MariadbHelper::getInstance().getConnection();
     // SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
     std::vector<sql::SQLString> params = {groupName, reqName};
-    auto ret = MariadbHelper::getInstance().query(conn, "SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
+    auto ret = MariadbHelper::getInstance().query(std::move(conn), "SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
                              "AND (uid IN (SELECT uid FROM user WHERE username=?));",
                              params);
     // std::cout<< "add g query ret: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 0;
     }
     else if (ret.size() == 0)
     {
         std::vector<sql::SQLString> grpparams = {groupName};
-        auto retfri = MariadbHelper::getInstance().query(conn, "SELECT gid FROM user_group WHERE gname=?;",grpparams);
+        auto retfri = MariadbHelper::getInstance().query(std::move(conn), "SELECT gid FROM user_group WHERE gname=?;",grpparams);
         std::string grpuid;
         if(retfri.size() != 1)
         {
-            MariadbHelper::getInstance().releaseConnection(conn);
+            MariadbHelper::getInstance().releaseConnection(std::move(conn));
             return 1;
         }
         else
@@ -268,40 +269,40 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
         }
         // std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
-        bool m_ret = MariadbHelper::getInstance().execute(conn, "INSERT INTO group_member (gid, uid) VALUES "
+        bool m_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO group_member (gid, uid) VALUES "
                                      "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
                                      iparams);
         // std::cout<< "debug log add g insert: " << m_ret << "--" << groupName <<std::endl;
         updateOnlineGUMap(groupName, fd);
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 0;
     }
     else
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return -1;
     }
-    MariadbHelper::getInstance().releaseConnection(conn);
+    MariadbHelper::getInstance().releaseConnection(std::move(conn));
     return -1;
 }
 
 int LoginCenter::vcreateGroup(std::string reqName, std::string groupName, int fd)
 {
-    const auto conn = MariadbHelper::getInstance().getConnection();
+    auto conn = MariadbHelper::getInstance().getConnection();
     // SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
     std::vector<sql::SQLString> params = {groupName};
-    auto ret = MariadbHelper::getInstance().query(conn, "SELECT gname FROM user_group WHERE gname=?;", params);
+    auto ret = MariadbHelper::getInstance().query(std::move(conn), "SELECT gname FROM user_group WHERE gname=?;", params);
     // std::cout<< "create g query ret: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 1;
     }
     else if (ret.size() == 0)
     {
         // std::cout<< "debug log create g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
-        bool m_ret = MariadbHelper::getInstance().execute(conn, "INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
+        bool m_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
                                      iparams);
         if(!m_ret)
         {
@@ -315,19 +316,19 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName, int fd
             std::cout << "gid: " << gid << std::endl;
         }
         std::vector<sql::SQLString> xparams = {groupName, reqName};
-        bool v_ret = MariadbHelper::getInstance().execute(conn, "INSERT INTO group_member (gid, uid, grole) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?), 'owner');",
+        bool v_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO group_member (gid, uid, grole) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?), 'owner');",
                                      iparams);
         // std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
         updateOnlineGUMap(groupName, fd);
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return 0;
     }
     else
     {
-        MariadbHelper::getInstance().releaseConnection(conn);
+        MariadbHelper::getInstance().releaseConnection(std::move(conn));
         return -1;
     }
-    MariadbHelper::getInstance().releaseConnection(conn);
+    MariadbHelper::getInstance().releaseConnection(std::move(conn));
     return -1;
 }
 
