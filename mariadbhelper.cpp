@@ -1,83 +1,104 @@
 #include "mariadbhelper.h"
 
-MariadbHelper::MariadbHelper(const std::string &user,
-                             const std::string &password,
-                             const std::string &database,
-                             const std::string &host,
-                             unsigned int port,
-                             bool autoConnect)
-    : m_user(user), m_password(password), m_database(database), m_host(host), m_port(port), m_autoConnect(autoConnect)
-{
-    m_connected = false;
-    if (m_autoConnect)
-    {
-        int ret = connectMariadb();
-        std::cout << "auto con db: " << ret << std::endl;
-    }
-    std::cout << "using mariadbhelper constructor" << std::endl;
-}
+
 MariadbHelper::~MariadbHelper()
 {
-    disconnectMariadb();
-    std::cout << "using mariadbhelper destructed" << std::endl;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    while (!m_connQueue.empty()) {
+        // unique_ptr在出栈时会自动关闭连接，很牛逼，很方便
+        m_connQueue.pop();
+    }
 }
 
-int MariadbHelper::connectMariadb()
+void MariadbHelper::init(const std::string &user, const std::string &password, const std::string &host, unsigned int port, const std::string datebase, int poolSize)
 {
-    if (m_conn)
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_user = user;
+    m_password = password;
+    m_host = host;
+    m_port = port;
+    m_database = datebase;
+    sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/" + m_database;
+    sql::Properties properties({{"user", m_user}, {"password", m_password}});
+    for (int i = 0; i < poolSize; ++i)
     {
-        std::cout<< "database connected" <<std::endl;
-        return 0;
-    }
-    try
-    {
-        sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/" + m_database;
-        sql::Properties properties({{"user", m_user}, {"password", m_password}});
-        sql::Driver *driver = sql::mariadb::get_driver_instance();
-        m_conn = std::unique_ptr<sql::Connection>(driver->connect(url, properties));
-        if (!m_conn)
+        sql::Driver* driver = sql::mariadb::get_driver_instance();
+        std::unique_ptr<sql::Connection> conn(driver->connect(url, properties));
+        if(!conn)
         {
-            return -1;
+            continue;
         }
-        m_connected = true;
+        else
+        {
+            m_connQueue.push(std::move(conn));
+        }
+        // 按照官方文档，应该是下面这样写，但是我实在是不太习惯这种错误处理，而且如果这样用前面也有代码要改动，先这样吧
+        // 等版本大动的时候再统一改
+        // try {
+        //     sql::Driver* driver = sql::mariadb::get_driver_instance();
+        //     std::unique_ptr<sql::Connection> conn(driver->connect(properties));
+        //     m_connQueue.push(std::move(conn));
+        // } catch (sql::SQLException& e) {
+        //     std::cerr << "Error creating connection: " << e.what() << std::endl;
+        // }
     }
-    catch (sql::SQLException &e)
-    {
-        m_lastError = e.what();
-        m_connected = false;
-        return -1;
-    }
-    return 0;
+    m_poolSize = poolSize;
 }
-void MariadbHelper::disconnectMariadb()
+
+sql::Connection *MariadbHelper::createNewConnection()
 {
-    if (m_conn)
+    sql::SQLString url = "jdbc:mariadb://" + m_host + ":" + std::to_string(m_port) + "/" + m_database;
+    sql::Properties properties({{"user", m_user}, {"password", m_password}});
+    sql::Driver* driver = sql::mariadb::get_driver_instance();
+    return driver->connect(url, properties);
+}
+
+void MariadbHelper::releaseConnection(std::unique_ptr<sql::Connection> conn)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (conn != nullptr) {
+        m_connQueue.push(std::move(conn));
+    }
+    //通过notify_one()发送的信号有wait接受，有点类似qt的信号槽？
+    m_condition.notify_one();
+}
+
+size_t MariadbHelper::getFreeConnectionCount()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_connQueue.size();
+}
+
+
+std::unique_ptr<sql::Connection> MariadbHelper::getConnection()
+{
+    std::unique_lock<std::mutex> lock(m_mutex);
+
+    // 会等到有连接可以用，通过notify_one发送
+    m_condition.wait(lock, [this]() { return !m_connQueue.empty(); });
+    std::unique_ptr<sql::Connection> conn = std::move(m_connQueue.front());
+    m_connQueue.pop();
+    if (conn != nullptr && !conn->isValid())
     {
-        m_conn->close();
-        m_conn.reset();
-        m_connected = false;
+        conn.reset(createNewConnection());
     }
     else
     {
-        std::cout << "disconnect mariadb did nothing, connect is not availiable" << std::endl;
+        return nullptr;
+        std::cout<< "get conn error and try again" <<std::endl;
     }
+    return conn;
 }
 
-bool MariadbHelper::isConnected()
-{
-    return m_connected;
-}
-
-std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(
-    const std::string sql, const std::vector<sql::SQLString> &params)
+std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(std::unique_ptr<sql::Connection> conn, const std::string sql, const std::vector<sql::SQLString> &params)
 {
     std::vector<std::map<std::string, sql::SQLString>> result;
-    if (!m_connected)
+    if (!conn)
     {
         std::cout << "not connected detected while query" << std::endl;
         return result;
     }
-    std::unique_ptr<sql::PreparedStatement> stmnt(m_conn->prepareStatement(sql));
+    std::unique_ptr<sql::PreparedStatement> stmnt(conn->prepareStatement(sql));
     for (size_t i = 0; i < params.size(); ++i)
     {
         stmnt->setString(i + 1, params[i]);
@@ -98,14 +119,14 @@ std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(
     return result;
 }
 
-bool MariadbHelper::execute(const std::string &sql, const std::vector<sql::SQLString> &params)
+bool MariadbHelper::execute(std::unique_ptr<sql::Connection> conn, const std::string &sql, const std::vector<sql::SQLString> &params)
 {
-    if (!m_conn)
+    if (!conn)
     {
         std::cout<< "error on execute sql, " <<std::endl;
         return false;
     }
-    std::unique_ptr<sql::PreparedStatement> stmnt(m_conn->prepareStatement(sql));
+    std::unique_ptr<sql::PreparedStatement> stmnt(conn->prepareStatement(sql));
     for (size_t i = 0; i < params.size(); ++i)
     {
         stmnt->setString(i + 1, params[i]);
@@ -114,15 +135,16 @@ bool MariadbHelper::execute(const std::string &sql, const std::vector<sql::SQLSt
     return true;
 }
 
-uint64_t MariadbHelper::getLastInsertId() const
+uint64_t MariadbHelper::getLastInsertId(std::unique_ptr<sql::Connection> conn) const
 {
-    if (!m_connected)
+    if (!conn)
     {
+        std::cout<< "error on get last insert id " <<std::endl;
         return 0;
     }
     try
     {
-        std::unique_ptr<sql::Statement> stmt(m_conn->createStatement());
+        std::unique_ptr<sql::Statement> stmt(conn->createStatement());
         std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT LAST_INSERT_ID()"));
         if (res->next())
         {
@@ -140,11 +162,11 @@ std::string MariadbHelper::getLastError() const
     return m_lastError;
 }
 
-void MariadbHelper::beginTransaction()
+void MariadbHelper::beginTransaction(std::unique_ptr<sql::Connection> conn)
 {
-    if (m_conn)
+    if (conn)
     {
-        m_conn->setAutoCommit(false);
+        conn->setAutoCommit(false);
     }
     else
     {
@@ -152,12 +174,12 @@ void MariadbHelper::beginTransaction()
     }
 }
 
-void MariadbHelper::commit()
+void MariadbHelper::commit(std::unique_ptr<sql::Connection> conn)
 {
-    if (m_conn)
+    if (conn)
     {
-        m_conn->commit();
-        m_conn->setAutoCommit(true);
+        conn->commit();
+        conn->setAutoCommit(true);
     }
     else
     {
@@ -165,12 +187,12 @@ void MariadbHelper::commit()
     }
 }
 
-void MariadbHelper::rollback()
+void MariadbHelper::rollback(std::unique_ptr<sql::Connection> conn)
 {
-    if (m_conn)
+    if (conn)
     {
-        m_conn->rollback();
-        m_conn->setAutoCommit(true);
+        conn->rollback();
+        conn->setAutoCommit(true);
     }
     else
     {

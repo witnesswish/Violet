@@ -16,16 +16,6 @@
 #include "protocol.h"
 #include "redishelper.h"
 
-// mariadb 连接信息
-struct Madb
-{
-    std::string m_user;
-    std::string m_password;
-    std::string m_database;
-    std::string m_host;
-    unsigned int m_port;
-};
-
 // 用户信息结构体
 struct User
 {
@@ -51,11 +41,9 @@ public:
     int vprivateChat(std::string firName);
     void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content);
     void vofflineHandle(int fd);
-    Madb setMariadb();
 
 private:
     SRHelper sr;
-    MariadbHelper mariadb;
     RedisHelper redis;
     /**
      * @brief onlineGUMap 群组在线用户，登录的时候加入fd，下线的时候删除fd，

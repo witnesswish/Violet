@@ -9,35 +9,44 @@
 #include <map>
 #include <string>
 #include <string.h>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <exception>
 
 class MariadbHelper
 {
 public:
-    MariadbHelper(const std::string &user,
-                  const std::string &password,
-                  const std::string &database,
-                  const std::string &host = "127.0.0.1",
-                  unsigned int port = 3306,
-                  bool autoConnect = true);
     ~MariadbHelper();
-    int connectMariadb();
-    void disconnectMariadb();
-    bool isConnected();
-    std::vector<std::map<std::string, sql::SQLString>> query(const std::string sql, const std::vector<sql::SQLString> &params);
-    bool execute(const std::string &sql, const std::vector<sql::SQLString> &params);
-    uint64_t getLastInsertId() const;
+    static MariadbHelper& getInstance()
+    {
+        static MariadbHelper instance;
+        return instance;
+    }
+    // 单例函数常规操作，删除赋值和构造
+    MariadbHelper(const MariadbHelper&) = delete;
+    MariadbHelper &opertaor=(const MariadbHelper&) = delete;
+    void init(const std::string& user, const std::string& password, const std::string& host, unsigned int m_port=3306, int poolSize = 7);
+    std::unique_ptr<sql::Connection> getConnection();
+    sql::Connection* createNewConnection();
+    void releaseConnection(std::unique_ptr<sql::Connection> conn);
+    size_t getFreeConnectionCount();
+    std::vector<std::map<std::string, sql::SQLString>> query(std::unique_ptr<sql::Connection> conn, const std::string sql, const std::vector<sql::SQLString> &params);
+    bool execute(std::unique_ptr<sql::Connection> conn, const std::string &sql, const std::vector<sql::SQLString> &params);
+    uint64_t getLastInsertId(std::unique_ptr<sql::Connection> conn) const;
     std::string getLastError() const;
-    void beginTransaction();
-    void commit();
-    void rollback();
+    void beginTransaction(std::unique_ptr<sql::Connection> conn);
+    void commit(std::unique_ptr<sql::Connection> conn);
+    void rollback(std::unique_ptr<sql::Connection> conn);
 
 private:
+    MariadbHelper() = default;
     std::string m_user, m_password, m_database, m_host;
     unsigned int m_port;
-    bool m_autoConnect;
-    bool m_connected;
     std::string m_lastError;
-    std::unique_ptr<sql::Connection> m_conn;
+    std::queue<std::unique_ptr<sql::Connection>> m_connQueue;
+    std::mutex m_mutex;
+    std::condition_variable m_condition;
 };
 
 #endif // MARIADBHELPER_H
