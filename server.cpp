@@ -526,7 +526,7 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    auto ret = pool.enqueue(file.vuploadFile(tmpPort));
+    auto ret = pool.enqueue([this, tmpPort](){return this->file.vuploadFile(tmpPort);});
     if(ret.get() < 0)
     {
         strcpy(neck.command, "vtfserr");

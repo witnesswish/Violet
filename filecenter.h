@@ -19,7 +19,7 @@ class FileCenter
 {
 public:
     FileCenter();
-    ssize_t vuploadFile(int &port);
+    int vuploadFile(int port);
     void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk, uint32_t chunkSize=512000);
 private:
     VioletProtHeader header;

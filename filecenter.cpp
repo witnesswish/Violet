@@ -6,7 +6,7 @@ FileCenter::FileCenter()
     header = {};
 }
 
-int FileCenter::vuploadFile(int &port)
+int FileCenter::vuploadFile(int port)
 {
     namespace fs = std::filesystem;
     std::fstream file;
