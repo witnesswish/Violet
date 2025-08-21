@@ -6,7 +6,7 @@ FileCenter::FileCenter()
 
 }
 
-ssize_t FileCenter::vuploadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk, uint32_t chunkSize, int port)
+ssize_t FileCenter::vuploadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk, uint32_t chunkSize)
 {
     namespace fs = std::filesystem;
     std::fstream file;
@@ -106,7 +106,7 @@ int FileCenter::getAvailablePort(int &port, int rangeStart, int rangEnd, int chu
 PortPoolCenter::PortPoolCenter(int minPort, int maxPort) : m_minPort(minPort), m_maxPort(maxPort), m_nextPortToScan(minPort)
 {
     init(10);
-    threadpool.enqueue(producerWorker, 10);
+    startProducerWorker();
 }
 
 PortPoolCenter::~PortPoolCenter()
@@ -162,6 +162,11 @@ int PortPoolCenter::getPort(int timeout)
     return port;
 }
 
+void PortPoolCenter::startProducerWorker()
+{
+    threadpool.enqueue([this](){return this->producerWorker();});
+}
+
 int PortPoolCenter::availablePortCount()
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -180,7 +185,7 @@ bool PortPoolCenter::isPortAvailable(int port)
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     struct sockaddr_in addr;
-    std::memset(&addr, 0, sizeof(addr));
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(port);

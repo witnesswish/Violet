@@ -55,7 +55,7 @@ if(PORT_TEST)
     # 添加测试可执行文件
     add_executable(porttest
         filecenter.h filecenter.cpp
-        portTest.cpp.cpp
+        portTest.cpp
     )
 
 target_link_libraries(porttest PRIVATE)
