@@ -13,7 +13,6 @@ add_executable(Violet main.cpp
     protocol.h
     protocol.cpp
     logincenter.h logincenter.cpp
-    readme.md
     redishelper.h redishelper.cpp
     filecenter.h filecenter.cpp
     threadpoolcenter.h threadpoolcenter.cpp
