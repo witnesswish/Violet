@@ -138,6 +138,7 @@ std::vector<std::map<std::string, sql::SQLString>> MariadbHelper::query(sql::Con
         }
         result.push_back(row);
     }
+    delete meta;
     return result;
 }
 
