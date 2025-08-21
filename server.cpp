@@ -6,7 +6,7 @@ Server::Server()
 {
     sock = 0;
     epfd = 0;
-    serAddr.sin_port = htons(3434);
+    serAddr.sin_port = htons(46836);
     serAddr.sin_addr.s_addr = INADDR_ANY;
     redis.connectRedis("127.0.0.1", 6379);
     emailreg = std::regex("(^[a-zA-Z0-9-_]+@[a-zA-Z0-9-_]+(\\.[a-zA-Z0-9-_]+)+)");
@@ -183,7 +183,6 @@ void Server::startServer()
                         {
                             bytesReady = 1;
                         }
-                        // 这里取值判断是因为要对fd进行一系列处理，这样虽然有点麻烦，但是后面看看机会再修改一下
                         // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
                         else if (ret->header.length == 0)
                         {
@@ -233,6 +232,14 @@ void Server::startServer()
                                 if(command == "vgc")
                                 {
                                     vgroupChat(fd, username, password, content);
+                                }
+                                if(command == "vtfs")
+                                {
+                                    vuploadFile(fd, )
+                                }
+                                if(command == "vtfr")
+                                {
+                                    //recv file here
                                 }
                             }
                             if (ret->neck.unlogin)
@@ -504,6 +511,41 @@ void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::str
 void Server::vofflineHandle(int fd)
 {
     loginCenter.vofflineHandle(fd);
+}
+
+void Server::vuploadFile(int fd, std::string fileName, std::string fileSize, uint32_t chunk, uint32_t chunkSize)
+{
+    VioletProtNeck neck = {};
+    size_t pos;
+    unsigned long fsize = std::stoul(fileSize, &pos);
+    bool flagSize = true;
+    if (pos != fileSize.size())
+    {
+        flagSize = false;
+        std::cout<< "Invalid characters in string" <<std::endl;
+    }
+    if (fsize > UINT32_MAX)
+    {
+        flagSize = false;
+        std::cout<< "Value exceeds uint32_t range" <<std::endl;
+    }
+    uint32_t tmpSize = static_cast<uint32_t>(fsize);
+    int tmpPort;
+    file.getAvailablePort(tmpPort);
+    if(tmpPort < 0 || tmpSize > 10485760 || !flagSize) //10m
+    {
+        strcpy(neck.command, "vtfserr");
+        std::string tmp("file system not avaliable right now, try it later");
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
+    else
+    {
+        strcpy(neck.command, "vtfspot");
+        std::string tmp(std::to_string(tmpPort));
+        sr.sendMsg(fd, neck, tmp);
+        return;
+    }
 }
 
 void Server::vlogin(int fd, std::string username, std::string password)

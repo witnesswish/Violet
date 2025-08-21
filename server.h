@@ -21,6 +21,8 @@
 #include "unlogincenter.h"
 #include "logincenter.h"
 #include "redishelper.h"
+#include "threadpoolcenter.h"
+#include "filecenter.h"
 
 /**
  * @brief The Server class
@@ -67,6 +69,8 @@ private:
     std::regex emailreg;
     std::regex namereg;
     bool running;
+    ThreadPoolCenter pool;
+    FileCenter file;
     static std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
 
 private:
@@ -80,6 +84,8 @@ private:
     void vprivateChat(int fd, std::string reqName, std::string friName, std::string content);
     void vgroupChat(int fd, std::string reqName, std::string gname, std::string content);
     void vofflineHandle(int fd);
+    void vuploadFile(int fd, std::string fileName, std::string fileSize, uint32_t chunk=0, uint32_t chunkSize=512000);
+    void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk=0, uint32_t chunkSize=512000);
 };
 
 #endif // SERVER_H

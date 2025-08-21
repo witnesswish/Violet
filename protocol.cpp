@@ -80,6 +80,53 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std
     }
 }
 
+Msg::Msg()
+{
+    //content.reserve(8000);
+}
+
+std::vector<char> Msg::serialize() const
+{
+    std::vector<char> packet(sizeof(VioletProtHeader) + sizeof(VioletProtNeck) + content.size());
+    memcpy(packet.data(), &header, sizeof(header));
+    memcpy(packet.data() + sizeof(VioletProtHeader), &neck, sizeof(neck));
+    if (!content.empty())
+    {
+        memcpy(packet.data() + sizeof(VioletProtHeader) + sizeof(VioletProtNeck), content.data(), content.size());
+    }
+    return packet;
+}
+
+std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
+{
+    std::cout<< "deserialize length: " << length <<std::endl;
+    if (length < sizeof(VioletProtHeader))
+        return std::nullopt;
+    Msg msg;
+    memcpy(&msg.header, data, sizeof(msg.header));
+    memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
+    if (ntohl(msg.header.magic) != 0x43484154)
+    {
+        std::cout<< "header magic bnumber error, return nullopt" <<std::endl;
+        return std::nullopt;
+    }
+    size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
+    size_t body_len = length - sizeof(msg.header) - sizeof(msg.neck);
+    std::cout<< "deserialize body_len: " << body_len << " actuall bodylen: " << ntohl(msg.header.length) <<std::endl;
+    //size_t body_len = ntohl(msg.header.length);
+    // if (length < excepted_len)
+    // {
+    //     return std::nullopt;
+    // }
+    if (body_len > 0)
+    {
+        msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
+    }
+    msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.neck) - sizeof(msg.header);
+    std::cout<< "deserialize msg header length: " << (msg.header.length) <<std::endl;
+    return msg;
+}
+
 std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
 {
     VioletProtHeader header;
@@ -242,51 +289,4 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
     std::cout<< "actual total recv len of this thime: " << totalRecv << "--" << recvBuffer.size() <<std::endl;
     return Msg::deserialize(recvBuffer.data(), totalRecv);
-}
-
-Msg::Msg()
-{
-    //content.reserve(8000);
-}
-
-std::vector<char> Msg::serialize() const
-{
-    std::vector<char> packet(sizeof(VioletProtHeader) + sizeof(VioletProtNeck) + content.size());
-    memcpy(packet.data(), &header, sizeof(header));
-    memcpy(packet.data() + sizeof(VioletProtHeader), &neck, sizeof(neck));
-    if (!content.empty())
-    {
-        memcpy(packet.data() + sizeof(VioletProtHeader) + sizeof(VioletProtNeck), content.data(), content.size());
-    }
-    return packet;
-}
-
-std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
-{
-    std::cout<< "deserialize length: " << length <<std::endl;
-    if (length < sizeof(VioletProtHeader))
-        return std::nullopt;
-    Msg msg;
-    memcpy(&msg.header, data, sizeof(msg.header));
-    memcpy(&msg.neck, data + sizeof(msg.header), sizeof(msg.neck));
-    if (ntohl(msg.header.magic) != 0x43484154)
-    {
-        std::cout<< "header magic bnumber error, return nullopt" <<std::endl;
-        return std::nullopt;
-    }
-    size_t excepted_len = sizeof(msg.header) + sizeof(msg.neck) + ntohl(msg.header.length);
-    size_t body_len = length - sizeof(msg.header) - sizeof(msg.neck);
-    std::cout<< "deserialize body_len: " << body_len << " actuall bodylen: " << ntohl(msg.header.length) <<std::endl;
-    //size_t body_len = ntohl(msg.header.length);
-    // if (length < excepted_len)
-    // {
-    //     return std::nullopt;
-    // }
-    if (body_len > 0)
-    {
-        msg.content.assign(data + sizeof(msg.header) + sizeof(msg.neck), data + sizeof(msg.header) + sizeof(msg.neck) + body_len);
-    }
-    msg.header.checksum = static_cast<uint32_t>(length) - sizeof(msg.neck) - sizeof(msg.header);
-    std::cout<< "deserialize msg header length: " << (msg.header.length) <<std::endl;
-    return msg;
 }

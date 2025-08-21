@@ -64,6 +64,8 @@ struct VioletProtNeck
 7. 私聊请求，客户端发送`vpc`,这种情况，使用 pass 来带对方用户名，如果失败返回`vpcerr`，成功不返回
 8. 私聊转发，服务器发送`vpcb`,使用 neck.name 字段带上请求对象用户名
 9. 缓存转发，如果用户登录的时候，有缓存，那么客户端发送`vpcache`带上信息，使用 neck.name 表示发送者
+10. 发送文件，客户端发送`vtfs`带上文件名，使用 neck.pass 带上文件名，neck.name 带上对方名字，content带上文件大小，服务器回复`vtfspot`带上端口， content带上端口，错误回复`vtfserr`
+11. 转发文件，服务器发送`vtfss`,使用 neck.name 带上发送者，neck.pass 带上文件名，head.type 带上端口
 
         特别说明：
         服务器做缓存用sorted set：zadd 时间戳 friName|content
