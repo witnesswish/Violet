@@ -3,4 +3,4 @@ CMakeLists.txt.user
 *.swp
 violet
 *.autosave
-*.me
+*.me.*

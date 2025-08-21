@@ -19,11 +19,11 @@ class FileCenter
 {
 public:
     FileCenter();
-    int getAvailablePort(int &port, int rangeStart=46386, int rangEnd=56386, int chunkSize=512000);
-    ssize_t vuploadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk, uint32_t chunkSize=512000);
+    ssize_t vuploadFile(int &port);
     void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk, uint32_t chunkSize=512000);
 private:
     VioletProtHeader header;
+    VioletProtNeck neck;
 };
 
 class PortPoolCenter

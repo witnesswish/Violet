@@ -235,7 +235,7 @@ void Server::startServer()
                                 }
                                 if(command == "vtfs")
                                 {
-                                    vuploadFile(fd, )
+                                    vuploadFile(fd, username, password);
                                 }
                                 if(command == "vtfr")
                                 {
@@ -513,26 +513,21 @@ void Server::vofflineHandle(int fd)
     loginCenter.vofflineHandle(fd);
 }
 
-void Server::vuploadFile(int fd, std::string fileName, std::string fileSize, uint32_t chunk, uint32_t chunkSize)
+void Server::vuploadFile(int fd, std::string reqName, std::string friName)
 {
     VioletProtNeck neck = {};
-    size_t pos;
-    unsigned long fsize = std::stoul(fileSize, &pos);
-    bool flagSize = true;
-    if (pos != fileSize.size())
+    int tmpPort = ppl.getPort();
+    if(tmpPort < 0)
     {
-        flagSize = false;
-        std::cout<< "Invalid characters in string" <<std::endl;
+        strcpy(neck.command, "vtfserr");
+        memcpy(neck.name, friName.c_str(), sizeof(neck.name));
+        memcpy(neck.pass, friName.c_str(), sizeof(neck.pass));
+        std::string tmp("file system not avaliable right now, try it later");
+        sr.sendMsg(fd, neck, tmp);
+        return;
     }
-    if (fsize > UINT32_MAX)
-    {
-        flagSize = false;
-        std::cout<< "Value exceeds uint32_t range" <<std::endl;
-    }
-    uint32_t tmpSize = static_cast<uint32_t>(fsize);
-    int tmpPort;
-    file.getAvailablePort(tmpPort);
-    if(tmpPort < 0 || tmpSize > 10485760 || !flagSize) //10m
+    auto ret = pool.enqueue(file.vuploadFile(tmpPort));
+    if(ret.get() < 0)
     {
         strcpy(neck.command, "vtfserr");
         std::string tmp("file system not avaliable right now, try it later");
@@ -541,6 +536,7 @@ void Server::vuploadFile(int fd, std::string fileName, std::string fileSize, uin
     }
     else
     {
+        // 这里发消息给接收方，提醒他好友发文件，并且给他一个端口
         strcpy(neck.command, "vtfspot");
         std::string tmp(std::to_string(tmpPort));
         sr.sendMsg(fd, neck, tmp);
