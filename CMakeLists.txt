@@ -49,16 +49,16 @@ target_link_libraries(test PRIVATE mariadbcpp hiredis)
 endif()
 
 option(PORT_TEST "Build porttest executable" OFF)
-if(BUILD_TEST)
+if(PORT_TEST)
     message(STATUS "Building generate executable")
 
     # 添加测试可执行文件
-    add_executable(generate
+    add_executable(porttest
         filecenter.h filecenter.cpp
-        portTest.cpp.cpp
+        portTest.cpp
     )
 
-target_link_libraries(generate PRIVATE)
+target_link_libraries(porttest PRIVATE)
 endif()
 # mkdir build && cd build
 # cmake -DBUILD_TEST=ON ..

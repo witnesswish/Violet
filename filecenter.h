@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <future>
+#include <filesystem>
 
 #include "protocol.h"
 #include "threadpoolcenter.h"
@@ -33,6 +34,7 @@ public:
     void init(int portSize);
     int getPort(int timeout=5000);
     int availablePortCount();
+    void startProducerWorker();
 private:
     std::queue<int> m_availablePorts;
     std::mutex m_mutex;
@@ -43,7 +45,7 @@ private:
     std::atomic<int> m_nextPortToScan;
     ThreadPoolCenter threadpool;
     bool isPortAvailable(int port);
-    static void producerWorker(int batchSize=10);
+    void producerWorker(int batchSize=10);
 };
 
 #endif // FILECENTER_H
