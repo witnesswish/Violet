@@ -2,12 +2,6 @@
 #define MARIADBHELPER_H
 
 #include <mariadb/conncpp.hpp>
-#include <memory>
-#include <string>
-#include <iostream>
-#include <vector>
-#include <map>
-#include <string>
 #include <string.h>
 #include <queue>
 #include <mutex>

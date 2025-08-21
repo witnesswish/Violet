@@ -1,3 +1,8 @@
+#include <iostream>
+#include <sstream>
+#include <cstdint>
+
+#include "mariadbhelper.h"
 #include "logincenter.h"
 
 /**

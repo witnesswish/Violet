@@ -1,18 +1,14 @@
 #ifndef LOGINCENTER_H
 #define LOGINCENTER_H
 
-#include <cstdint>
 #include <cstring>
 #include <arpa/inet.h>
-#include <iostream>
-#include <sstream>
 #include <string>
 #include <map>
 #include <set>
 #include <sys/socket.h>
 #include <list>
 
-#include "mariadbhelper.h"
 #include "protocol.h"
 #include "redishelper.h"
 

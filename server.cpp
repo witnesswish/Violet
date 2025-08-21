@@ -1,4 +1,12 @@
+#include <chrono>
+#include <optional>
+#include <iostream>
+
+#include <errno.h>
+#include <list>
+
 #include "server.h"
+#include "common.h"
 
 std::unordered_map<int, UserRecvBuffer> Server::userRecvBuffMap;
 
@@ -10,7 +18,7 @@ Server::Server()
     serAddr.sin_addr.s_addr = INADDR_ANY;
     redis.connectRedis("127.0.0.1", 6379);
     emailreg = std::regex("(^[a-zA-Z0-9-_]+@[a-zA-Z0-9-_]+(\\.[a-zA-Z0-9-_]+)+)");
-    //说明，最多10个中文
+    //30个字节，最多10个中文
     namereg = std::regex("[a-zA-z0-9\u4e00-\u9fa5]{1,30}");
     running = true;
 }
@@ -19,6 +27,11 @@ Server::~Server()
     closeServer();
     redis.disconnectRedis();
 }
+/**
+ * @brief Server::getRecvSize 防止意外发生，内存有东西没有读全，做个检查
+ * @param fd
+ * @return
+ */
 int Server::getRecvSize(int fd)
 {
     int bytes;
@@ -526,22 +539,26 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
         sr.sendMsg(fd, neck, tmp);
         return;
     }
-    auto ret = pool.enqueue([this, tmpPort](){return this->file.vuploadFile(tmpPort);});
-    if(ret.get() < 0)
-    {
-        strcpy(neck.command, "vtfserr");
-        std::string tmp("file system not avaliable right now, try it later");
-        sr.sendMsg(fd, neck, tmp);
-        return;
-    }
-    else
-    {
-        // 这里发消息给接收方，提醒他好友发文件，并且给他一个端口
-        strcpy(neck.command, "vtfspot");
-        std::string tmp(std::to_string(tmpPort));
-        sr.sendMsg(fd, neck, tmp);
-        return;
-    }
+    pool.enqueue([this, tmpPort](){return this->file.vuploadFile(tmpPort);});
+    strcpy(neck.command, "vtfspot");
+    std::string tmp(std::to_string(tmpPort));
+    sr.sendMsg(fd, neck, tmp);
+    // 这部分要到那边去发送，不关线程失败还是成功。
+    // if(ret.get() < 0)
+    // {
+    //     strcpy(neck.command, "vtfserr");
+    //     std::string tmp("file system not avaliable right now, try it later");
+    //     sr.sendMsg(fd, neck, tmp);
+    //     return;
+    // }
+    // else
+    // {
+    //     // 这里发消息给接收方，提醒他好友发文件，并且给他一个端口
+    //     strcpy(neck.command, "vtfspot");
+    //     std::string tmp(std::to_string(tmpPort));
+    //     sr.sendMsg(fd, neck, tmp);
+    //     return;
+    // }
 }
 
 void Server::vlogin(int fd, std::string username, std::string password)

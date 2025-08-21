@@ -1,22 +1,16 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <string.h>
-#include <optional>
-#include <errno.h>
-#include <list>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <chrono>
 #include <regex>
 
-#include "common.h"
 #include "protocol.h"
 #include "unlogincenter.h"
 #include "logincenter.h"
@@ -25,27 +19,14 @@
 #include "filecenter.h"
 
 /**
- * @brief The Server class
- *
+ * @brief The UserRecvBuffer class 当用户发送的消息过长，不能一次传完的时候，先把用户的消息存起来，读完了再进行转发
  */
-
 struct  UserRecvBuffer
 {
      int fd;
      ssize_t expectLen;
      ssize_t actuaLen;
      std::vector<char> recvBuffer;
-
-     std::vector<char> serialize() const
-     {
-         std::vector<char> packet(sizeof(fd)+sizeof(expectLen)+sizeof(actuaLen)+recvBuffer.size());
-         memcpy(packet.data(), &fd, sizeof(fd));
-         memcpy(packet.data()+sizeof(fd), &expectLen, sizeof(expectLen));
-         memcpy(packet.data()+sizeof(fd)+sizeof(expectLen), &actuaLen, sizeof(actuaLen));
-         if(!recvBuffer.empty())
-             memcpy(packet.data()+sizeof(fd)+sizeof(expectLen)+sizeof(actuaLen), recvBuffer.data(), recvBuffer.size());
-         return packet;
-     }
 };
 
 class Server

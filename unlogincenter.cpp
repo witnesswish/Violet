@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "unlogincenter.h"
 
 std::list<int> UnloginCenter::onlineUnlogin = {};

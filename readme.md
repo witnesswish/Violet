@@ -3,23 +3,23 @@
 # Violet 🚀
 
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CMake Build](https://github.com/yourname/chat-server/actions/workflows/cmake.yml/badge.svg)](https://github.com/yourname/chat-server/actions)
-[![Codecov](https://codecov.io/gh/yourname/chat-server/branch/main/graph/badge.svg)](https://codecov.io/gh/yourname/chat-server)
+[![C++11](https://img.shields.io/badge/C++-11-blue.svg)](https://en.cppreference.com/)
 [![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://en.cppreference.com/)
+
+**工业级C++后端项目** | Reactor模型 · 双存储引擎 · mariadb连接池
 
 ## 简介
         高性能架构：基于Epoll ET模式+线程池，单机支持8000+并发连接
 
         零依赖部署：纯C++实现，无需容器化，make一键编译运行
 
-        智能指针内存管理（Valgrind零泄漏验证）
+        智能指针内存管理
 
-        MariaDB连接池技术（查询延迟<15ms）
+        MariaDB连接池
 
-        Redis AOF持久化（消息零丢失）
+        Redis 做离线消息缓存
 
-        Reactor网络模型 | 8000+并发连接 | 双存储方案
+        Reactor网络模型 
 
 ## 编译
 ```bash
@@ -28,20 +28,40 @@ cd Violet && mkdir build && cd build
 cmake .. && make -j4
 ./Violet
 ```
+服务端使用了 hiredis 和 mariadb/conncpp, 编译前需要安装这两个库
+需要进行模块测试，请修改test.cpp后参考以下命令，下面的所有命令都是基于build目录下运行：
+```
+cmake -DBUILD_TEST=ON .. && make test
+```
 
 
 # 架构
+版本演化：
+```mermaid
+graph LR
+    v1.0[基础版本] --> v1.1[+Mariadb做用户信息管理]
+    v1.1 --> v1.2[+Redis做离线消息缓存]
+    v1.2 --> v1.3[改进mariadb连接池]
+    v1.3 --> v1.4[+文件上传+端口池]
+    
+```
 ```mermaid
 graph TD
     客户端-->|TCP Socket|Epoll
-    Epoll-->|事件分发|线程池
-    线程池-->Protocol[协议解析]
+    Epoll-->Protocol[协议解析]
     Protocol-->unloginRouter[匿名路由]
     Protocol-->loginRouter[有名路由]
     loginRouter-->|存储验证|MariaDB
     loginRouter-->|缓存|Redis
-    unloginRouter-->|私聊消息|转发
-    unloginRouter-->|群消息|转发
+    unloginRouter-->|消息|转发
+    登录用户的消息-->|ProtocolBuffer|协议解析
+    协议解析-->|msg|普通聊天消息
+    普通聊天消息-->|转发|根据请求好友转发
+    协议解析-->|file|请求文件传输
+    请求文件传输-->|查找端口|端口管理
+    端口管理-->|成功|返回端口
+    端口管理-->|失败|请求失败
+    返回端口-->|成功|监听端口等待上传
 ```
 
 

@@ -1,7 +1,6 @@
 #ifndef UNLOGINCENTER_H
 #define UNLOGINCENTER_H
 
-#include <iostream>
 #include <list>
 #include <sys/socket.h>
 
