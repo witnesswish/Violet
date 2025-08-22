@@ -68,6 +68,7 @@ private:
     void vofflineHandle(int fd);
     void vuploadFile(int fd, std::string reqName, std::string friName);
     void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk=0, uint32_t chunkSize=512000);
+    void vsayWelcome(int fd);
 };
 
 #endif // SERVER_H

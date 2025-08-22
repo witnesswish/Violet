@@ -15,8 +15,8 @@
 class ThreadPoolCenter
 {
 public:
-    // 默认获取核心数std::thread::hardware_concurrency()获取核心数
-    explicit ThreadPoolCenter(size_t num_threads = std::thread::hardware_concurrency()) : stop(false)
+    // 默认获取核心数std::thread::hardware_concurrency()获取核心数,设置为2倍
+    explicit ThreadPoolCenter(size_t num_threads = (std::thread::hardware_concurrency())*2) : stop(false)
     {
         // 线程初始化即启动，当没有任务condition.wait()使它睡眠，
         // 当被condition.notify_one()唤醒，检查条件通过之后执行，进入下一次循环，如果没有任务就睡觉
