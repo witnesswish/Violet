@@ -97,12 +97,30 @@ void Server::startServer()
             int fd = events[i].data.fd;
             if (fd == sock)
             {
-                struct sockaddr_in clientAddr;
-                socklen_t clientAddrLength = sizeof(struct sockaddr_in);
-                int client = accept(sock, (struct sockaddr *)&clientAddr, &clientAddrLength);
-                std::cout << "client connection from: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << ", clientfd = #" << client << std::endl;
-                //后续操作放到线程
-                ppl.enqueue(vsayWelcome(client));
+                while(true)
+                {
+                    struct sockaddr_in clientAddr;
+                    socklen_t clientAddrLength = sizeof(struct sockaddr_in);
+                    int client = accept(sock, (struct sockaddr *)&clientAddr, &clientAddrLength);
+                    if(client > 0)
+                    {
+                        std::cout << "client connection from: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << ", clientfd = #" << client << std::endl;
+                        pool.enqueue([this, client](){this->vsayWelcome(client);});
+                    }
+                    else
+                    {
+                        if(errno == EAGAIN || errno == EWOULDBLOCK)
+                        {
+                            std::cout<< "read eagain or ewouldblock, break" <<std::endl;
+                            break;
+                        }
+                        else
+                        {
+                            perror("something  happend un expected");
+                            break;
+                        }
+                    }
+                }
             }
             else
             {
