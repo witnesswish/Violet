@@ -237,6 +237,11 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
         return std::nullopt;
     }
     uint32_t contentLen = ntohl(header.length);
+    if(contentLen > 5485760)
+    {
+        std::cout << "recv error size, size is larger than 5485760, return nullopt" << std::endl;
+        return std::nullopt;
+    }
     std::cout << "content len to malloc " << contentLen << " of recv" << std::endl;
     uint32_t totaLen = contentLen + sizeof(header) + sizeof(neck);
     std::cout << "total len to malloc " << totaLen << " of recv" << std::endl;
