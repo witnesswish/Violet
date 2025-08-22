@@ -78,6 +78,189 @@ void Server::init()
     addfd(sock, epfd);
 }
 
+void Server::vread_cb(int fd)
+{
+    int bytesReady = getRecvSize(fd);
+    while (bytesReady > 41 || bytesReady == 0)
+    {
+        std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
+        std::optional<Msg> ret=Msg{};
+        auto ixt = userRecvBuffMap.find(fd);
+        if(ixt != userRecvBuffMap.end())
+        {
+            UserRecvBuffer &murb = ixt->second;
+            if(murb.fd != fd)
+            {
+                std::cout<< "something error i don't know if this shown, just tag it, location 1" <<std::endl;
+                continue;
+            }
+            else
+            {
+                ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
+                if(ret != std::nullopt)
+                {
+                    murb.actuaLen += ret->header.checksum;
+                    murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
+                    if(ret->header.checksum == 0)
+                    {
+                        std::cout<< "read special byte, get 0, knicking user out" <<std::endl;
+                        unlogin.removeUnlogin(fd);
+                        vofflineHandle(fd);
+                        bytesReady = 1;
+                    }
+                    if(murb.actuaLen < murb.expectLen)
+                    {
+                        continue;
+                        bytesReady = 1;
+                    }
+                    else
+                    {
+                        //ret = Msg::deserialize(murb.recvBuffer.data(), murb.expectLen+sizeof(ret->header)+sizeof(ret->neck));
+                        ret = Msg::deserialize(murb.recvBuffer.data(), murb.recvBuffer.size());
+                        userRecvBuffMap.erase(fd);
+                        bytesReady = 1;
+                    }
+                }
+                else
+                {
+                    std::cout<< "read special byte error, contunie" <<std::endl;
+                    bytesReady = 1;
+                    continue;
+                }
+            }
+        }
+        else
+        {
+            ret = sr.recvMsg(fd, -1);
+            std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
+        }
+        if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
+        {
+            if(!ret.has_value())
+            {
+                std::cout<< "ret empty" <<std::endl;
+            }
+            else
+                std::cout<< "ret not empty" <<std::endl;
+            UserRecvBuffer urbf;
+            urbf.fd = fd;
+            urbf.expectLen = ntohl(ret->header.length);
+            urbf.actuaLen = ret->header.checksum;
+            urbf.recvBuffer = ret.value().serialize();
+            //memcpy(urbf.recvBuffer.data(), &(ret->header), sizeof(ret->header));
+            //memcpy(urbf.recvBuffer.data()+sizeof(ret->header), &(ret->neck), sizeof(ret->neck));
+            //urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
+            userRecvBuffMap[fd] = urbf;
+            std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << ntohl(ret->header.length)
+                     <<" recv: " << ret->header.checksum <<std::endl;
+            bytesReady = 1;
+            continue;
+        }
+        if (ret == std::nullopt)
+        {
+            std::cout << "sr return null opt" << std::endl;
+        }
+        else
+        {
+            if (ntohl(ret->header.length) == 1)
+            {
+                bytesReady = 1;
+            }
+            // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
+            else if (ret->header.length == 0)
+            {
+                //HMSET %s fd %s id %s stat %s
+                unlogin.removeUnlogin(fd);
+                vofflineHandle(fd);
+                bytesReady = 1;
+            }
+            else
+            {
+                bytesReady = getRecvSize(fd);
+                ret->neck.mfrom = fd;
+                if (!ret->neck.unlogin)
+                {
+                    std::string command(ret->neck.command);
+                    std::string username(ret->neck.name);
+                    std::string password(ret->neck.pass);
+                    std::string ccdemail(ret->neck.email);
+                    std::string content;
+                    content.reserve(ret->content.size()+10);  // 预分配内存
+                    content.assign(ret->content.begin(), ret->content.end());
+                    std::cout << command << "-" << username << "-" << password << "-" << content << std::endl;
+                    if (command == "vreg")
+                    {
+                        vregister(fd, username, password, ccdemail);
+                    }
+                    if (command == "vlogin")
+                    {
+                        vlogin(fd, username, password);
+                    }
+                    if (command == "vaddf")
+                    {
+                        vaddFriend(fd, username, content);
+                    }
+                    if (command == "vaddg")
+                    {
+                        vaddGroup(fd, username, content);
+                    }
+                    if (command == "vcrtg")
+                    {
+                        vcreateGroup(fd, username, content);
+                    }
+                    if(command == "vpc")
+                    {
+                        vprivateChat(fd, username, password, content);
+                    }
+                    if(command == "vgc")
+                    {
+                        vgroupChat(fd, username, password, content);
+                    }
+                    if(command == "vtfs")
+                    {
+                        vuploadFile(fd, username, password);
+                    }
+                    if(command == "vtfr")
+                    {
+                        //recv file here
+                    }
+                }
+                if (ret->neck.unlogin)
+                {
+                    std::string text = std::string(ret->content.begin(), ret->content.end());
+                    std::string command(ret->neck.command);
+                    std::cout << "command: " << command << std::endl;
+                    if (command == std::string("nonreq"))
+                    {
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "nonsucc");
+                        strcpy(neck.name, std::to_string(fd).c_str());
+                        std::string tmp = std::string("violet");
+                        sr.sendMsg(fd, neck, tmp);
+                    }
+                    if (command == std::string("nong"))
+                    {
+                        std::cout << "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) << std::endl;
+                        unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
+                    }
+                    if (command == std::string("nonig"))
+                    {
+                        unlogin.addNewUnlogin(fd);
+                    }
+                    if (command == std::string("nonqg"))
+                    {
+                        unlogin.removeUnlogin(fd);
+                    }
+                    if (command == std::string("nonp"))
+                    {
+                        unlogin.privateChate(fd, ret->neck.mto, text);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
@@ -94,6 +277,28 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             debugi ++;
+            std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
+            if (events[i].events & (EPOLLERR | EPOLLHUP)) {
+                // 错误或挂起，必须关闭
+                close(events[i].data.fd);
+                continue;
+            }
+
+            if (events[i].events & EPOLLRDHUP) {
+                // 对端关闭连接（优雅关闭）
+                close(events[i].data.fd);
+                continue;
+            }
+
+            // if (events[i].events & EPOLLIN) {
+            //     // 处理读事件（在read中发现count==0也要处理关闭）
+            //     handle_read(events[i].data.fd);
+            // }
+
+            // if (events[i].events & EPOLLOUT) {
+            //     // 处理写事件
+            //     handle_write(events[i].data.fd);
+            // }
             int fd = events[i].data.fd;
             if (fd == sock)
             {
@@ -124,186 +329,7 @@ void Server::startServer()
             }
             else
             {
-                std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
-                int bytesReady = getRecvSize(fd);
-                while (bytesReady > 41 || bytesReady == 0)
-                {
-                    std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
-                    std::optional<Msg> ret=Msg{};
-                    auto ixt = userRecvBuffMap.find(fd);
-                    if(ixt != userRecvBuffMap.end())
-                    {
-                        UserRecvBuffer &murb = ixt->second;
-                        if(murb.fd != fd)
-                        {
-                            std::cout<< "something error i don't know if this shown, just tag it, location 1" <<std::endl;
-                            continue;
-                        }
-                        else
-                        {
-                            ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
-                            if(ret != std::nullopt)
-                            {
-                                murb.actuaLen += ret->header.checksum;
-                                murb.recvBuffer.insert(murb.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                                if(ret->header.checksum == 0)
-                                {
-                                    std::cout<< "read special byte, get 0, knicking user out" <<std::endl;
-                                    unlogin.removeUnlogin(fd);
-                                    vofflineHandle(fd);
-                                    bytesReady = 1;
-                                }
-                                if(murb.actuaLen < murb.expectLen)
-                                {
-                                    continue;
-                                    bytesReady = 1;
-                                }
-                                else
-                                {
-                                    //ret = Msg::deserialize(murb.recvBuffer.data(), murb.expectLen+sizeof(ret->header)+sizeof(ret->neck));
-                                    ret = Msg::deserialize(murb.recvBuffer.data(), murb.recvBuffer.size());
-                                    userRecvBuffMap.erase(fd);
-                                    bytesReady = 1;
-                                }
-                            }
-                            else
-                            {
-                                std::cout<< "read special byte error, contunie" <<std::endl;
-                                bytesReady = 1;
-                                continue;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        ret = sr.recvMsg(fd, -1);
-                        std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
-                    }
-                    if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
-                    {
-                        if(!ret.has_value())
-                        {
-                            std::cout<< "ret empty" <<std::endl;
-                        }
-                        else
-                            std::cout<< "ret not empty" <<std::endl;
-                        UserRecvBuffer urbf;
-                        urbf.fd = fd;
-                        urbf.expectLen = ntohl(ret->header.length);
-                        urbf.actuaLen = ret->header.checksum;
-                        urbf.recvBuffer = ret.value().serialize();
-                        //memcpy(urbf.recvBuffer.data(), &(ret->header), sizeof(ret->header));
-                        //memcpy(urbf.recvBuffer.data()+sizeof(ret->header), &(ret->neck), sizeof(ret->neck));
-                        //urbf.recvBuffer.insert(urbf.recvBuffer.end(), ret->content.begin(), ret->content.end());
-                        userRecvBuffMap[fd] = urbf;
-                        std::cout<< "not recving all data, stash to violet recv cache, continue, total: " << ntohl(ret->header.length)
-                                 <<" recv: " << ret->header.checksum <<std::endl;
-                        bytesReady = 1;
-                        continue;
-                    }
-                    if (ret == std::nullopt)
-                    {
-                        std::cout << "sr return null opt" << std::endl;
-                    }
-                    else
-                    {
-                        if (ntohl(ret->header.length) == 1)
-                        {
-                            bytesReady = 1;
-                        }
-                        // 前面已经close过一次了，所以直接处理剩余的步骤，从list移除等行为
-                        else if (ret->header.length == 0)
-                        {
-                            //HMSET %s fd %s id %s stat %s
-                            unlogin.removeUnlogin(fd);
-                            vofflineHandle(fd);
-                            bytesReady = 1;
-                        }
-                        else
-                        {
-                            bytesReady = getRecvSize(fd);
-                            ret->neck.mfrom = fd;
-                            if (!ret->neck.unlogin)
-                            {
-                                std::string command(ret->neck.command);
-                                std::string username(ret->neck.name);
-                                std::string password(ret->neck.pass);
-                                std::string ccdemail(ret->neck.email);
-                                std::string content;
-                                content.reserve(ret->content.size()+10);  // 预分配内存
-                                content.assign(ret->content.begin(), ret->content.end());
-                                std::cout << command << "-" << username << "-" << password << "-" << content << std::endl;
-                                if (command == "vreg")
-                                {
-                                    vregister(fd, username, password, ccdemail);
-                                }
-                                if (command == "vlogin")
-                                {
-                                    vlogin(fd, username, password);
-                                }
-                                if (command == "vaddf")
-                                {
-                                    vaddFriend(fd, username, content);
-                                }
-                                if (command == "vaddg")
-                                {
-                                    vaddGroup(fd, username, content);
-                                }
-                                if (command == "vcrtg")
-                                {
-                                    vcreateGroup(fd, username, content);
-                                }
-                                if(command == "vpc")
-                                {
-                                    vprivateChat(fd, username, password, content);
-                                }
-                                if(command == "vgc")
-                                {
-                                    vgroupChat(fd, username, password, content);
-                                }
-                                if(command == "vtfs")
-                                {
-                                    vuploadFile(fd, username, password);
-                                }
-                                if(command == "vtfr")
-                                {
-                                    //recv file here
-                                }
-                            }
-                            if (ret->neck.unlogin)
-                            {
-                                std::string text = std::string(ret->content.begin(), ret->content.end());
-                                std::string command(ret->neck.command);
-                                std::cout << "command: " << command << std::endl;
-                                if (command == std::string("nonreq"))
-                                {
-                                    VioletProtNeck neck = {};
-                                    strcpy(neck.command, "nonsucc");
-                                    strcpy(neck.name, std::to_string(fd).c_str());
-                                    std::string tmp = std::string("violet");
-                                    sr.sendMsg(fd, neck, tmp);
-                                }
-                                if (command == std::string("nong"))
-                                {
-                                    std::cout << "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) << std::endl;
-                                    unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
-                                }
-                                if (command == std::string("nonig"))
-                                {
-                                    unlogin.addNewUnlogin(fd);
-                                }
-                                if (command == std::string("nonqg"))
-                                {
-                                    unlogin.removeUnlogin(fd);
-                                }
-                                if (command == std::string("nonp"))
-                                {
-                                    unlogin.privateChate(fd, ret->neck.mto, text);
-                                }
-                            }
-                        }
-                    }
-                }
+                vread_cb(fd);
             }
         }
     }

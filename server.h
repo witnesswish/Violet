@@ -58,6 +58,7 @@ private:
 private:
     void init();
     int getRecvSize(int fd);
+    void vread_cb(int fd);
     void vlogin(int fd, std::string username, std::string password);
     void vregister(int fd, std::string username, std::string password, std::string email);
     void vaddFriend(int fd, std::string reqName, std::string friName);
