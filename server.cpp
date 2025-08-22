@@ -82,6 +82,7 @@ void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
     init();
+    int debugi = 0;
     while (running)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
@@ -92,6 +93,7 @@ void Server::startServer()
         }
         for (int i = 0; i < epoll_events_count; ++i)
         {
+            debugi ++;
             int fd = events[i].data.fd;
             if (fd == sock)
             {
@@ -112,6 +114,7 @@ void Server::startServer()
             }
             else
             {
+                std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
                 int bytesReady = getRecvSize(fd);
                 while (bytesReady > 41 || bytesReady == 0)
                 {
