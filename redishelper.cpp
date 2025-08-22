@@ -26,7 +26,7 @@ void RedisHelper::connectRedis(const std::string &host,
                                const std::string &password,
                                int timeout_sec)
 {
-    disconnectRedis();
+    //disconnectRedis();
     struct timeval timeout = {timeout_sec, 0};
     context_ = redisConnectWithTimeout(host.c_str(), port, timeout);
 

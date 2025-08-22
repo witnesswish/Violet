@@ -14,6 +14,8 @@ Server::Server()
 {
     sock = 0;
     epfd = 0;
+    memset(&serAddr, 0, sizeof(serAddr));
+    serAddr.sin_family = AF_INET;
     serAddr.sin_port = htons(46836);
     serAddr.sin_addr.s_addr = INADDR_ANY;
     redis.connectRedis("127.0.0.1", 6379);
@@ -45,7 +47,7 @@ int Server::getRecvSize(int fd)
 
 void Server::init()
 {
-    sock = socket(PF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
     {
         perror("socket error");
