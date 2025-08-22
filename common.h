@@ -16,7 +16,7 @@ inline void addfd(int fd, int epfd, bool enable_et = true)
     ev.data.fd = fd;
     ev.events = EPOLLIN;
     if (enable_et)
-        ev.events = EPOLLIN | EPOLLET;
+        ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
     epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
     std::cout << "fd #" << fd << " added to epoll" << std::endl;

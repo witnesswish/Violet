@@ -80,10 +80,10 @@ void Server::init()
 
 void Server::vread_cb(int fd)
 {
+    std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
     int bytesReady = getRecvSize(fd);
     while (bytesReady > 41 || bytesReady == 0)
     {
-        std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
         std::optional<Msg> ret=Msg{};
         auto ixt = userRecvBuffMap.find(fd);
         if(ixt != userRecvBuffMap.end())
@@ -279,13 +279,13 @@ void Server::startServer()
             debugi ++;
             std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP)) {
-                // 错误或挂起，必须关闭
+                std::cout<< "错误或挂起，必须关闭" <<std::endl;
                 close(events[i].data.fd);
                 continue;
             }
 
             if (events[i].events & EPOLLRDHUP) {
-                // 对端关闭连接（优雅关闭）
+                std::cout<< "对端关闭连接（优雅关闭）" <<std::endl;
                 close(events[i].data.fd);
                 continue;
             }
@@ -310,7 +310,8 @@ void Server::startServer()
                     if(client > 0)
                     {
                         std::cout << "client connection from: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << ", clientfd = #" << client << std::endl;
-                        pool.enqueue([this, client](){this->vsayWelcome(client);});
+                        //pool.enqueue([this, client](){this->vsayWelcome(client);});
+                        vsayWelcome(client);
                     }
                     else
                     {
