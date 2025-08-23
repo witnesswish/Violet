@@ -292,7 +292,7 @@ void Server::startServer()
                 std::cout<< "错误或挂起，必须关闭" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
                 vofflineHandle(events[i].data.fd);
-                removefd(sock, epfd);
+                removefd(events[i].data.fd, epfd);
                 close(events[i].data.fd);
                 continue;
             }
@@ -301,7 +301,7 @@ void Server::startServer()
                 std::cout<< "对端关闭连接（优雅关闭）" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
                 vofflineHandle(events[i].data.fd);
-                removefd(sock, epfd);
+                removefd(events[i].data.fd, epfd);
                 close(events[i].data.fd);
                 continue;
             }
