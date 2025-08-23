@@ -1,6 +1,7 @@
 #include <chrono>
 #include <optional>
 #include <iostream>
+#include <netinet/tcp.h>
 
 #include <errno.h>
 #include <list>
@@ -59,12 +60,20 @@ void Server::init()
         perror("setsockopt error");
         exit(-1);
     }
+    int enable_keepalive = 1;
+    setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &enable_keepalive, sizeof(enable_keepalive));
+    int idle_time = 10;     //10秒无活动后开始发送探测包，测试阶段，后面可以改长一点
+    int probe_interval = 5;     //5秒间隔
+    int probe_count = 3;        //3次
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &idle_time, sizeof(idle_time));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &probe_interval, sizeof(probe_interval));
+    setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &probe_count, sizeof(probe_count));
     if (bind(sock, (const struct sockaddr *)&serAddr, sizeof(serAddr)) < 0)
     {
         perror("bind error");
         exit(-1);
     }
-    if (listen(sock, 10) < 0)
+    if (listen(sock, 2048) < 0)
     {
         perror("listen error");
         exit(-1);
@@ -278,27 +287,24 @@ void Server::startServer()
         {
             debugi ++;
             std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
-            if (events[i].events & (EPOLLERR | EPOLLHUP)) {
+            if (events[i].events & (EPOLLERR | EPOLLHUP))
+            {
                 std::cout<< "错误或挂起，必须关闭" <<std::endl;
+                unlogin.removeUnlogin(events[i].data.fd);
+                vofflineHandle(events[i].data.fd);
+                removefd(sock, epfd);
                 close(events[i].data.fd);
                 continue;
             }
 
             if (events[i].events & EPOLLRDHUP) {
                 std::cout<< "对端关闭连接（优雅关闭）" <<std::endl;
+                unlogin.removeUnlogin(events[i].data.fd);
+                vofflineHandle(events[i].data.fd);
+                removefd(sock, epfd);
                 close(events[i].data.fd);
                 continue;
             }
-
-            // if (events[i].events & EPOLLIN) {
-            //     // 处理读事件（在read中发现count==0也要处理关闭）
-            //     handle_read(events[i].data.fd);
-            // }
-
-            // if (events[i].events & EPOLLOUT) {
-            //     // 处理写事件
-            //     handle_write(events[i].data.fd);
-            // }
             int fd = events[i].data.fd;
             if (fd == sock)
             {

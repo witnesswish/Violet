@@ -21,5 +21,9 @@ inline void addfd(int fd, int epfd, bool enable_et = true)
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
     std::cout << "fd #" << fd << " added to epoll" << std::endl;
 }
+inline void removefd(int fd, int epfd)
+{
+    epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+}
 
 #endif // COMMON_H

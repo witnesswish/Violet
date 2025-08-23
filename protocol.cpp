@@ -170,6 +170,7 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
                 }
                 else if(len == 0)
                 {
+                    std::cout << "read 0, goint to kinck user out" <<std::endl;
                     Msg msg = {};
                     msg.header.length = 0;
                     msg.header.checksum = 0;
@@ -248,6 +249,14 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
     std::vector<char> recvBuffer(totaLen);
     std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
     len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+    if(len == 0)
+    {
+        std::cout << "read 0, goint to kinck user out" <<std::endl;
+        Msg msg = {};
+        msg.header.length = 0;
+        msg.header.checksum = 0;
+        return msg;
+    }
     std::cout << "read " << len << " bytes from socket buffer" << std::endl;
     std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
     ssize_t tmp;
@@ -278,6 +287,14 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
             {
                 std::cout<< "contunie read error len: " << len << " actual total recv: " << totalRecv << " of bytes" <<std::endl;
                 break;
+            }
+            else if(len == 0)
+            {
+                std::cout << "read 0, goint to kinck user out" <<std::endl;
+                Msg msg = {};
+                msg.header.length = 0;
+                msg.header.checksum = 0;
+                return msg;
             }
             else
             {
