@@ -121,11 +121,16 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
     {
         if (username != std::string(irow.at("username").c_str()))
         {
-            //返回好友列表的同时，对所有在线好友广播上线
+            //返回好友列表的同时，对所有在线好友广播上线，同时告诉自己有哪些好友是在线的
             u.friends.push_back(std::string(irow.at("username").c_str()));
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
             {
+                VioletProtNeck neck = {};
+                strcpy(neck.command, "vbul");
+                strcpy(neck.name, irow.at("username").c_str());
+                std::string tmp("violet");
+                sr.sendMsg(fd, neck, tmp);
                 for(auto it : ret.value())
                 {
                     VioletProtNeck neck = {};
