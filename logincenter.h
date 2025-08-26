@@ -37,6 +37,7 @@ public:
     int vprivateChat(std::string firName);
     void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content);
     void vofflineHandle(int fd);
+    void vhandleVbulre(int fd, std::string requestName, std::string friName);
 
 private:
     SRHelper sr;

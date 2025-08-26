@@ -464,6 +464,34 @@ void LoginCenter::vofflineHandle(int fd)
     }
 }
 
+void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string friName)
+{
+    auto ret = redis.execute("HGET %s fd", friName.c_str());
+    if(ret != std::nullopt)
+    {
+        for(auto &it : ret.value())
+        {
+            if(std::stoi(it))
+            {
+                VioletProtNeck neck = {};
+                strcpy(neck.command, "vbul");
+                memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+                std::string tmp("violet");
+                sr.sendMsg(std::stoi(it), neck, tmp);
+            }
+        }
+    }
+    else
+    {
+        VioletProtNeck neck = {};
+        strcpy(neck.command, "vbulerr");
+        memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
+        std::string tmp("user not online");
+        sr.sendMsg(fd, neck, tmp);
+        std::cout<< "vbul error, user not online" <<std::endl;
+    }
+}
+
 //
 std::string LoginCenter::serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2)
 {

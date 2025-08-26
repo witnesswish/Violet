@@ -207,11 +207,7 @@ void Server::vread_cb(int fd)
                     }
                     if (command == "vbulre")
                     {
-                        VioletProtNeck neck = {};
-                        strcpy(neck.command, "vbul");
-                        strcpy(neck.name, username.c_str());
-                        std::string tmp("violet");
-                        sr.sendMsg(fd, neck, tmp);
+                        loginCenter.vhandleVbulre(fd, username, password);
                     }
                     if (command == "vaddf")
                     {
