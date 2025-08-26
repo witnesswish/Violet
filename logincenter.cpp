@@ -135,7 +135,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                     std::string tmp("violet");
                     sr.sendMsg(std::stoi(it), neck, tmp);
                     onlineUserFriend[fd].push_back(std::stoi(it));
-                    std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << it <<std::endl;
+                    std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << onlineUserFriend[fd].size() <<std::endl;
                 }
             }
             //std::cout << irow.at("username") << std::endl;
@@ -415,9 +415,15 @@ void LoginCenter::vofflineHandle(int fd)
             if(refedHand != onlineUserFriend.end())
             {
                 std::list<int> &refedList = refedHand->second;
+                std::cout<< "refedList size: " << refedList.size() <<std::endl;
                 refedList.remove(fd);
+                std::cout<< "refedList size: " << refedList.size() <<std::endl;
             }
         }
+    }
+    else
+    {
+        std::cout<< "not find user fd #" << fd << " on onlineUserFriend" <<std::endl;
     }
     onlineUserFriend.erase(fd);
     //auto git = onlineGUMap.find()
@@ -475,6 +481,8 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
     {
         for(auto &it : ret.value())
         {
+            // 收到上线提醒之后，回复，服务器转发给接受者说明好友确实在线并且活跃，更新状态
+            // 同时requestName更新自己的在线好友列表，将firName的fd添加到在线好友中
             if(std::stoi(it))
             {
                 VioletProtNeck neck = {};
@@ -482,6 +490,7 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
                 memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
                 std::string tmp("violet");
                 sr.sendMsg(std::stoi(it), neck, tmp);
+                onlineUserFriend[fd].push_back(std::stoi(it));
             }
         }
     }
