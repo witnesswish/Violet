@@ -49,7 +49,7 @@ private:
      * 用户离线-》广播下线-》删除好友列表
      */
     static std::map<std::string, std::set<int>> onlineGUMap;
-    static std::map<std::string, std::list<int>> onlineUserFriend;
+    static std::map<int, std::list<int>> onlineUserFriend;
     static std::map<int, std::string> onlineUser;
 private:
     std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);

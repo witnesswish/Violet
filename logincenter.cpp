@@ -12,7 +12,7 @@
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
 std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
-std::map<std::string, std::list<int>> LoginCenter::onlineUserFriend{};
+std::map<int, std::list<int>> LoginCenter::onlineUserFriend{};
 std::map<int, std::string> LoginCenter::onlineUser{};
 LoginCenter::LoginCenter()
 {
@@ -113,6 +113,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         }
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
+    onlineUserFriend.erase(fd);
     std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
                                  "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
@@ -133,10 +134,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                     strcpy(neck.name, username.c_str());
                     std::string tmp("violet");
                     sr.sendMsg(std::stoi(it), neck, tmp);
-                    onlineUserFriend.clear();
-                    std::list<int> tmpList;
-                    tmpList.push_back(std::stoi(it));
-                    onlineUserFriend[username] = tmpList;
+                    onlineUserFriend[fd].push_back(std::stoi(it));
                     std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << it <<std::endl;
                 }
             }
@@ -400,7 +398,7 @@ void LoginCenter::vofflineHandle(int fd)
         std::cout<< "offline found: " << tmpname <<std::endl;
         onlineUser.erase(fd);
     }
-    auto ouf = onlineUserFriend.find(tmpname);
+    auto ouf = onlineUserFriend.find(fd);
     if(ouf != onlineUserFriend.end())
     {
         std::list<int> &tmplist = ouf->second;
@@ -413,9 +411,15 @@ void LoginCenter::vofflineHandle(int fd)
             std::string tmp("violet");
             sr.sendMsg(*j, neck, tmp);
             std::cout<< "send offline msg on offliehandle for: " << *j <<std::endl;
+            auto refedHand = onlineUserFriend.find(*j);
+            if(refedHand != onlineUserFriend.end())
+            {
+                std::list<int> &refedList = refedHand->second;
+                refedList.remove(fd);
+            }
         }
     }
-    onlineUserFriend.erase(tmpname);
+    onlineUserFriend.erase(fd);
     //auto git = onlineGUMap.find()
     std::string tmpgn = tmpname + "grp";
     auto ret3 = redis.execute("LLEN %s", tmpgn.c_str());
