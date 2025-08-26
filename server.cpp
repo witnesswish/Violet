@@ -205,6 +205,14 @@ void Server::vread_cb(int fd)
                     {
                         vlogin(fd, username, password);
                     }
+                    if (command == "vbulre")
+                    {
+                        VioletProtNeck neck = {};
+                        strcpy(neck.command, "vbul");
+                        strcpy(neck.name, username.c_str());
+                        std::string tmp("violet");
+                        sr.sendMsg(fd, neck, tmp);
+                    }
                     if (command == "vaddf")
                     {
                         vaddFriend(fd, username, content);
@@ -623,7 +631,7 @@ void Server::vsayWelcome(int fd)
 
 void Server::vlogin(int fd, std::string username, std::string password)
 {
-    //只需要拦截用户名，密码我的后续计划是在前端进行一次加密，再传输，先不写规则
+    //只需要拦截用户名
     if(!regex_match(username, namereg))
     {
         VioletProtNeck neck = {};

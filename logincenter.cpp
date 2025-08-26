@@ -126,11 +126,6 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
             {
-                VioletProtNeck neck = {};
-                strcpy(neck.command, "vbul");
-                strcpy(neck.name, irow.at("username").c_str());
-                std::string tmp("violet");
-                sr.sendMsg(fd, neck, tmp);
                 for(auto it : ret.value())
                 {
                     VioletProtNeck neck = {};

@@ -16,6 +16,7 @@ add_executable(Violet main.cpp
     redishelper.h redishelper.cpp
     filecenter.h filecenter.cpp
     threadpoolcenter.h threadpoolcenter.cpp
+    readme.me.md
 )
 
 include(GNUInstallDirs)

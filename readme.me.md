@@ -57,7 +57,7 @@ struct VioletProtNeck
 3. 好友申请，服务器发送`vafed`给申请对象，neck.name带上对方用户名
 4. 添加群组，客户端发送`vaddg`加信息，neck.name带上自己用户名，content带上群组名
 5. 创建群组，客户端发送`vcrtg`加信息，
-6. 上线广播，服务器发送`vbul`加信息,广播里 neck.name 字段带用户名
+6. 上线广播，服务器发送`vbul`加信息,广播里 neck.name 字段带用户名，当收到上线广播，回`vbulre`给服务器，服务器转发`vbul`给登录用户，实现双向在线提醒。
 6. 下线广播，服务器发送`vbol`，neck.name带用户名
 6. 群聊请求，客户端发送`vgc`,这种情况，使用 pass 来的带上群组名称，如果失败返回`vgcerr`，成功不返回
 6. 群聊广播，服务器发送`vgcb`,使用 neck.name 字段带上群组名字，neck.pass 带上请求方用户名
