@@ -3,10 +3,10 @@
 
 #include <vector>
 #include <arpa/inet.h>
-#include <iostream>
 #include <optional>
-#include <string.h>
 #include <unistd.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #pragma pack(push, 1)
 struct VioletProtHeader
@@ -67,12 +67,12 @@ class SRHelper
 {
 public:
     SRHelper();
-    void sendMsg(int fd, uint16_t msgType, const std::string &content);
-    void sendMsg(int fd, VioletProtHeader header, std::string &content);
-    void sendMsg(int fd, VioletProtNeck neck, std::string &content);
-    void sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std::string &content);
+    void sendMsg(int fd, uint16_t msgType, const std::string &content, SSL *ssl = nullptr);
+    void sendMsg(int fd, VioletProtHeader header, std::string &content, SSL *ssl = nullptr);
+    void sendMsg(int fd, VioletProtNeck neck, std::string &content, SSL *ssl = nullptr);
+    void sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std::string &content, SSL *ssl = nullptr);
     // 这个部分返回的是vector<char>,转为string使用构造函数std::string str(ret.data(), ret.size())
-    std::optional<Msg> recvMsg(int fd, ssize_t byteToRead);
+    std::optional<Msg> recvMsg(int fd, ssize_t byteToRead, SSL *ssl = nullptr);
 };
 
 #endif // PROTOCOL_H

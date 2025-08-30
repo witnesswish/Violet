@@ -6,10 +6,11 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <regex>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "protocol.h"
 #include "unlogincenter.h"

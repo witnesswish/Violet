@@ -26,7 +26,7 @@ find_library(MARIADBCPP_LIBRARY
     PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu
 )
 
-target_link_libraries(Violet PRIVATE mariadbcpp hiredis)
+target_link_libraries(Violet PRIVATE mariadbcpp hiredis ssl crypto)
 
 install(TARGETS Violet
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

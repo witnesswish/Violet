@@ -2,9 +2,9 @@
 #include <optional>
 #include <iostream>
 #include <netinet/tcp.h>
+#include <string.h>
 
 #include <errno.h>
-#include <list>
 
 #include "server.h"
 #include "common.h"
@@ -85,9 +85,39 @@ void Server::init()
         exit(-1);
     }
     addfd(sock, epfd);
+
+    // 下面是ssl的配置
+    SSL_library_init();                  // 载入所有SSL算法
+    OpenSSL_add_all_algorithms();        // 载入所有加密算法
+    SSL_load_error_strings();            // 载入所有SSL错误信息
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+    const SSL_METHOD *method = TLS_server_method();
+    SSL_CTX *ctx = SSL_CTX_new(method);
+    if (!ctx)
+    {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM) <= 0)
+    {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM) <= 0)
+    {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (!SSL_CTX_check_private_key(ctx))
+    {
+        fprintf(stderr, "Private key does not match the certificate public key\n");
+        exit(EXIT_FAILURE);
+    }
+    //SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);    //只能使用较新的版本
 }
 
-void Server::vread_cb(int fd)
+void Server::vread_cb(int fd, SSL *ssl)
 {
     std::cout << "read from client(clientID = #" << fd << ")" << std::endl;
     int bytesReady = getRecvSize(fd);
@@ -105,7 +135,7 @@ void Server::vread_cb(int fd)
             }
             else
             {
-                ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
+                ret = sr.recvMsg(ssl, murb.expectLen - murb.actuaLen);
                 if(ret != std::nullopt)
                 {
                     murb.actuaLen += ret->header.checksum;
@@ -140,7 +170,7 @@ void Server::vread_cb(int fd)
         }
         else
         {
-            ret = sr.recvMsg(fd, -1);
+            ret = sr.recvMsg(ssl, -1);
             std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
         }
         if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
@@ -278,7 +308,6 @@ void Server::startServer()
 {
     static struct epoll_event events[EPOLL_SIZE];
     init();
-    int debugi = 0;
     while (running)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
@@ -289,11 +318,11 @@ void Server::startServer()
         }
         for (int i = 0; i < epoll_events_count; ++i)
         {
-            debugi ++;
-            std::cout<< "read from else, it means this client has been registered, and should be do something to it, i am going to test:  " << debugi <<std::endl;
+            int fd = events[i].data.fd;
+            SSL *fssl = (SSL *)events[i].data.ptr;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
-                std::cout<< "错误或挂起，必须关闭" <<std::endl;
+                std::cout<< "错误或挂起，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
                 vofflineHandle(events[i].data.fd);
                 removefd(events[i].data.fd, epfd);
@@ -302,14 +331,13 @@ void Server::startServer()
             }
 
             if (events[i].events & EPOLLRDHUP) {
-                std::cout<< "对端关闭连接（优雅关闭）" <<std::endl;
+                std::cout<< "对端关闭连接，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
                 vofflineHandle(events[i].data.fd);
                 removefd(events[i].data.fd, epfd);
                 close(events[i].data.fd);
                 continue;
             }
-            int fd = events[i].data.fd;
             if (fd == sock)
             {
                 while(true)
@@ -340,7 +368,10 @@ void Server::startServer()
             }
             else
             {
-                vread_cb(fd);
+                if(fssl != nullptr)
+                {
+                    vread_cb(fd, fssl);
+                }
             }
         }
     }
@@ -615,14 +646,70 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
 
 void Server::vsayWelcome(int fd)
 {
+    // 当连接到来，先进行ssl握手，再sayhello，如果握手不成功，直接关闭
+    // 创建一个SSL对象
+    SSL *ssl = SSL_new(ctx);
+    if (!ssl)
+    {
+        ERR_print_errors_fp(stderr);
+        close(fd); // 绑定失败的话关闭TCP连接，先关闭，如果要协商，后续再继续添加
+        return;
+    }
+
+    // 将SSL对象与fd关联起来
+    if (SSL_set_fd(ssl, fd) != 1)
+    {
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl);
+        close(fd);  //关联失败，关闭tcp，先关闭
+        return;
+    }
+    // 在TCP连接之上进行SSL握手
+    int acceptRet = SSL_accept(ssl);
+    while(accept_ret <= 0)
+    {
+        char tmp[1024];
+        int err = SSL_get_error(ssl, acceptRet);
+        fprintf(stderr, "SSL_accept failed with error %d\n", err);
+        // 如果ssl握手过程中有数据可读或可写，那么直接读出来丢弃，应该保证在握手之前没有数据可写
+        if(err == SSL_ERROR_WANT_READ)
+        {
+            int ret = recv(fd, tmp, sizeof(tmp), 0);
+            while(ret >= 0)
+            {
+                ret = recv(fd, tmp, sizeof(tmp), 0);
+            }
+            acceptRet = SSL_accept(ssl);
+        }
+        else if(err ==  SSL_ERROR_WANT_WRITE)
+        {
+            int ret = send(fd, tmp, sizeof(tmp), 0);
+            while(ret > 0)
+            {
+                ret = send(fd, tmp, sizeof(tmp), 0);
+            }
+            acceptRet = SSL_accept(ssl);
+        }
+        else
+        {
+            ERR_print_errors_fp(stderr);
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            close(fd);
+            return;
+        }
+    }
+    printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(ssl));
+
+    // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
-    addfd(fd, epfd);
+    addfd(fd, epfd, ssl);
     // clients_list.push_back(clientfd);一些操作
     std::string welcome = "welcome, your id is #";
     welcome += std::to_string(fd);
     welcome += ", enjoy yourself";
     std::cout << "welcome: " << welcome << std::endl;
-    sr.sendMsg(fd, 0, welcome);
+    sr.sendMsg(fd, 0, welcome, ssl);
 }
 
 void Server::vlogin(int fd, std::string username, std::string password)

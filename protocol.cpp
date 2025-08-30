@@ -2,10 +2,12 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <string.h>
+#include <iostream>
 
 SRHelper::SRHelper() {}
 
-void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content)
+void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content, SSL *ssl = nullptr)
 {
     Msg msg;
     msg.header.magic = htonl(0x43484154); // "CHAT"
@@ -16,17 +18,27 @@ void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content)
     msg.neck = {};
     msg.content.assign(content.begin(), content.end());
     auto packet = msg.serialize();
-    if (send(fd, packet.data(), packet.size(), 0) < 0)
+    if(ssl != nullptr)
     {
-        perror("send msg error");
+        if(SSL_write(SSL *ssl, packet.data(), packet.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
     }
     else
     {
-        std::cout << "send msg success" << std::endl;
+        if (send(fd, packet.data(), packet.size(), 0) < 0)
+        {
+            perror("send msg error");
+        }
+        else
+        {
+            std::cout << "send msg success" << std::endl;
+        }
     }
 }
 
-void SRHelper::sendMsg(int fd, VioletProtHeader header, std::string &content)
+void SRHelper::sendMsg(int fd, VioletProtHeader header, std::string &content, SSL *ssl = nullptr)
 {
     Msg msg;
     msg.header = header;
@@ -42,7 +54,7 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, std::string &content)
     }
 }
 
-void SRHelper::sendMsg(int fd, VioletProtNeck neck, std::string &content)
+void SRHelper::sendMsg(int fd, VioletProtNeck neck, std::string &content, SSL *ssl = nullptr)
 {
     Msg msg;
     msg.header.magic = htonl(0x43484154); // "CHAT"
@@ -63,7 +75,7 @@ void SRHelper::sendMsg(int fd, VioletProtNeck neck, std::string &content)
     }
 }
 
-void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std::string &content)
+void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std::string &content, SSL *ssl = nullptr)
 {
     Msg msg;
     msg.header = header;
@@ -127,7 +139,7 @@ std::optional<Msg> Msg::deserialize(const char *data, ssize_t length)
     return msg;
 }
 
-std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead)
+std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl = nullptr)
 {
     VioletProtHeader header;
     VioletProtNeck neck;
