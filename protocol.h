@@ -1,6 +1,8 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
+#include <string.h>
+#include <iostream>
 #include <vector>
 #include <arpa/inet.h>
 #include <optional>

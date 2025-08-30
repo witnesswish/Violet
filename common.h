@@ -17,7 +17,10 @@ inline void addfd(int fd, int epfd, SSL *ssl = nullptr, bool enable_et = true)
     struct epoll_event ev;
     ev.data.fd = fd;
     ev.events = EPOLLIN;
-    ev.data.ptr = ssl;
+    if(ssl != nullptr)
+    {
+        ev.data.ptr = ssl;
+    }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
     epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);

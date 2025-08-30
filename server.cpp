@@ -62,8 +62,8 @@ void Server::init()
     }
     int enable_keepalive = 1;
     setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &enable_keepalive, sizeof(enable_keepalive));
-    int idle_time = 10;     //10秒无活动后开始发送探测包，测试阶段，后面可以改长一点
-    int probe_interval = 5;     //5秒间隔
+    int idle_time = 300;     //10秒无活动后开始发送探测包，测试阶段，后面可以改长一点
+    int probe_interval = 10;     //5秒间隔
     int probe_count = 3;        //3次
     setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &idle_time, sizeof(idle_time));
     setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &probe_interval, sizeof(probe_interval));
@@ -85,6 +85,7 @@ void Server::init()
         exit(-1);
     }
     addfd(sock, epfd);
+    std::cout<< "on for lop ..." << sock << ": " << epfd <<std::endl;
 
     // 下面是ssl的配置
     SSL_library_init();                  // 载入所有SSL算法
@@ -99,12 +100,12 @@ void Server::init()
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (SSL_CTX_use_certificate_file(ctx, "cert.pem", SSL_FILETYPE_PEM) <= 0)
+    if (SSL_CTX_use_certificate_file(ctx, "/home/ubuntu/Violet/cert.pem", SSL_FILETYPE_PEM) <= 0)
     {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if (SSL_CTX_use_PrivateKey_file(ctx, "key.pem", SSL_FILETYPE_PEM) <= 0)
+    if (SSL_CTX_use_PrivateKey_file(ctx, "/home/ubuntu/Violet/key.pem", SSL_FILETYPE_PEM) <= 0)
     {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -115,6 +116,7 @@ void Server::init()
         exit(EXIT_FAILURE);
     }
     //SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);    //只能使用较新的版本
+    std::cout<< "end  of init function" <<std::endl;
 }
 
 void Server::vread_cb(int fd, SSL *ssl)
@@ -135,7 +137,7 @@ void Server::vread_cb(int fd, SSL *ssl)
             }
             else
             {
-                ret = sr.recvMsg(ssl, murb.expectLen - murb.actuaLen);
+                ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
                 if(ret != std::nullopt)
                 {
                     murb.actuaLen += ret->header.checksum;
@@ -170,7 +172,7 @@ void Server::vread_cb(int fd, SSL *ssl)
         }
         else
         {
-            ret = sr.recvMsg(ssl, -1);
+            ret = sr.recvMsg(fd, -1);
             std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
         }
         if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
@@ -311,6 +313,7 @@ void Server::startServer()
     while (running)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
+        std::cout<< "on running ..." << epoll_events_count <<std::endl;
         if (epoll_events_count < 0)
         {
             perror("epoll event count error");
@@ -319,6 +322,7 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
+            std::cout<< "on for lop ..." << events[i].data.fd <<std::endl;
             SSL *fssl = (SSL *)events[i].data.ptr;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
@@ -340,6 +344,7 @@ void Server::startServer()
             }
             if (fd == sock)
             {
+                std::cout<< "new client connecting..." <<std::endl;
                 while(true)
                 {
                     struct sockaddr_in clientAddr;
@@ -360,7 +365,7 @@ void Server::startServer()
                         }
                         else
                         {
-                            perror("something  happend un expected");
+                            perror("something  happend unexpected");
                             break;
                         }
                     }
@@ -646,6 +651,7 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
 
 void Server::vsayWelcome(int fd)
 {
+    std::cout<< "into say hello function" <<std::endl;
     // 当连接到来，先进行ssl握手，再sayhello，如果握手不成功，直接关闭
     // 创建一个SSL对象
     SSL *ssl = SSL_new(ctx);
@@ -703,6 +709,7 @@ void Server::vsayWelcome(int fd)
 
     // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
+    std::cout<< "re confirm fd is #" << fd <<std::endl;
     addfd(fd, epfd, ssl);
     // clients_list.push_back(clientfd);一些操作
     std::string welcome = "welcome, your id is #";
