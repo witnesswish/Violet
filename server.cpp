@@ -93,7 +93,7 @@ void Server::init()
     ERR_load_BIO_strings();
     ERR_load_crypto_strings();
     const SSL_METHOD *method = TLS_server_method();
-    SSL_CTX *ctx = SSL_CTX_new(method);
+    ctx = SSL_CTX_new(method);
     if (!ctx)
     {
         ERR_print_errors_fp(stderr);
@@ -666,7 +666,7 @@ void Server::vsayWelcome(int fd)
     }
     // 在TCP连接之上进行SSL握手
     int acceptRet = SSL_accept(ssl);
-    while(accept_ret <= 0)
+    while(acceptRet <= 0)
     {
         char tmp[1024];
         int err = SSL_get_error(ssl, acceptRet);
