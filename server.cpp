@@ -322,11 +322,12 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
+            SSL *fssl = nullptr;
             std::cout<< "on  server for lop ..." << fd <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
                 ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                SSL *fssl = ptrx->ssl;
+                fssl = ptrx->ssl;
                 if(fssl != nullptr)
                 {
                     fd = ptrx->fd;
@@ -338,9 +339,10 @@ void Server::startServer()
                 close(fd);
                 continue;
             }
-            if (events[i].events & EPOLLRDHUP) {
+            if (events[i].events & EPOLLRDHUP)
+            {
                 ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                SSL *fssl = ptrx->ssl;
+                fssl = ptrx->ssl;
                 if(fssl != nullptr)
                 {
                     fd = ptrx->fd;
@@ -384,7 +386,7 @@ void Server::startServer()
             else
             {
                 ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                SSL *fssl = ptrx->ssl;
+                fssl = ptrx->ssl;
                 int ffd = ptrx->fd;
                 if(fssl != nullptr)
                 {
@@ -666,7 +668,6 @@ void Server::vsayWelcome(int fd)
 {
     std::cout<< "into say hello function" <<std::endl;
     // 当连接到来，先进行ssl握手，再sayhello，如果握手不成功，直接关闭
-    // 创建一个SSL对象
     SSL *sslWelcome = SSL_new(ctx);
     if (!sslWelcome)
     {
@@ -726,7 +727,7 @@ void Server::vsayWelcome(int fd)
         }
     }
     printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(sslWelcome));
-    ConnectionInfo connInfo = {fd, sslWelcome};
+    ConnectionInfo connInfo{fd, sslWelcome};
     // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
     std::cout<< "re confirm fd is #" << fd <<std::endl;
@@ -757,7 +758,7 @@ void Server::vlogin(int fd, std::string username, std::string password, SSL *ssl
     {
         std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char *)"vloginerr");
+        strcpy(neck.command, "vloginerr");
         std::string tmp("violet");
         sr.sendMsg(fd, neck, tmp, ssl);
         return;
@@ -766,7 +767,7 @@ void Server::vlogin(int fd, std::string username, std::string password, SSL *ssl
     {
         std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
-        strcpy(neck.command, (const char *)"vloginerr");
+        strcpy(neck.command, "vloginerr");
         std::string tmp("incorrect");
         sr.sendMsg(fd, neck, tmp, ssl);
         return;

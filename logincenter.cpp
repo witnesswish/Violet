@@ -113,7 +113,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         }
     }
     // 到此为止，登录逻辑已经完成，下面是把用户的群组好友等信息返回
-    onlineUserFriend.erase(fd);
+    onlineUserFriend.erase(fd);     //在使用之前删除确保不会重复添加，暂时没有重复登录的说法，现状是哪个最后登录，消息转发就给谁
     std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
                                                                        "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
@@ -122,7 +122,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
     {
         if (username != std::string(irow.at("username").c_str()))
         {
-            //返回好友列表的同时，对所有在线好友广播上线，同时告诉自己有哪些好友是在线的
+            //返回好友列表，同时根据名字查询fd，再根据fd查询ssl，然后通过ssl对所有在线好友广播上线，在线好友会回复服务器的广播，提示自己确实在线
             u.friends.push_back(std::string(irow.at("username").c_str()));
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
             if(ret != std::nullopt)
@@ -501,6 +501,7 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
             // 同时requestName更新自己的在线好友列表，将firName的fd添加到在线好友中
             if(std::stoi(it))
             {
+                std::cout<< "on vhandleVbulre read fri fd from redis: " << std::stoi(it) <<std::endl;
                 VioletProtNeck neck = {};
                 strcpy(neck.command, "vbul");
                 memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
@@ -510,6 +511,7 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
                     auto iterator = fdSslMap.find(std::stoi(it));
                     if (iterator != fdSslMap.end())
                     {
+                        std::cout<< "on vhandleVbulre read fri fd from fdSslMap: " << iterator->second <<std::endl;
                         sr.sendMsg(std::stoi(it), neck, tmp, iterator->second);
                         ConnectionInfo conInfo;
                         conInfo.fd = std::stoi(it);
@@ -622,7 +624,11 @@ void LoginCenter::updateOnlineGUMap(const std::string &key, int value)
             if (iterator != fdSslMap.end())
             {
                 ConnectionInfo conInfo;
-                conInfo.fd = (value);
+                if(conInfo.fd != value)
+                {
+                    std::cout<< "error wrong fd or wrong ConnectionInfo fd from updateOnlineGUMap, youshould check it" <<std::endl;
+                }
+                conInfo.fd = value;
                 conInfo.ssl = iterator->second;
                 std::vector<ConnectionInfo> &newValue = it->second;
                 newValue.push_back(conInfo);

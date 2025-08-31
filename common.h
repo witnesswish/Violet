@@ -38,12 +38,12 @@ inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_e
         ev.data.ptr = ptr;
         std::lock_guard<std::mutex> lock(fdSslMapMutex);
         fdSslMap[fd] = ptr->ssl;
+        std::cout << "fd #" << ptr->fd << " added to epoll" << std::endl;
     }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
     epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
-    std::cout << "fd #" << fd << " added to epoll" << std::endl;
 }
 inline void removefd(int fd, int epfd, SSL *ssl = nullptr)
 {
