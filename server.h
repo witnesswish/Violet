@@ -61,16 +61,16 @@ private:
     void init();
     int getRecvSize(int fd);
     void vread_cb(int fd, SSL *ssl);
-    void vlogin(int fd, std::string username, std::string password);
-    void vregister(int fd, std::string username, std::string password, std::string email);
-    void vaddFriend(int fd, std::string reqName, std::string friName);
-    void vaddGroup(int fd, std::string reqName, std::string groupName);
-    void vcreateGroup(int fd, std::string reqName, std::string groupName);
-    void vprivateChat(int fd, std::string reqName, std::string friName, std::string content);
-    void vgroupChat(int fd, std::string reqName, std::string gname, std::string content);
-    void vofflineHandle(int fd);
-    void vuploadFile(int fd, std::string reqName, std::string friName);
-    void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, uint32_t chunk=0, uint32_t chunkSize=512000);
+    void vlogin(int fd, std::string username, std::string password, SSL *ssl);
+    void vregister(int fd, std::string username, std::string password, std::string email, SSL *ssl);
+    void vaddFriend(int fd, std::string reqName, std::string friName, SSL *ssl);
+    void vaddGroup(int fd, std::string reqName, std::string groupName, SSL *ssl);
+    void vcreateGroup(int fd, std::string reqName, std::string groupName, SSL *ssl);
+    void vprivateChat(int fd, std::string reqName, std::string friName, std::string content, SSL *ssl);
+    void vgroupChat(int fd, std::string reqName, std::string gname, std::string content, SSL *ssl);
+    void vofflineHandle(int fd, SSL *ssl);
+    void vuploadFile(int fd, std::string reqName, std::string friName, SSL *ssl);
+    void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, SSL *ssl, uint32_t chunk=0, uint32_t chunkSize=512000);
     void vsayWelcome(int fd);
 };
 

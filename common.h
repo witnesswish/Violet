@@ -27,8 +27,13 @@ inline void addfd(int fd, int epfd, SSL *ssl = nullptr, bool enable_et = true)
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
     std::cout << "fd #" << fd << " added to epoll" << std::endl;
 }
-inline void removefd(int fd, int epfd)
+inline void removefd(int fd, int epfd, SSL *ssl = nullptr)
 {
+    if(ssl != nullptr)
+    {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
     epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
 }
 

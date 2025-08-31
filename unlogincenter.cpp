@@ -8,7 +8,7 @@ UnloginCenter::UnloginCenter()
 {
 }
 
-void UnloginCenter::sendBordcast(int from, std::string content)
+void UnloginCenter::sendBordcast(int from, std::string content, SSL *ssl)
 {
     std::cout << "sb: " << content << std::endl;
     for (auto &fd : onlineUnlogin)
@@ -22,11 +22,11 @@ void UnloginCenter::sendBordcast(int from, std::string content)
         strcpy(neck.command, "nongb");
         strcpy(neck.name, std::to_string(from).c_str());
         neck.mfrom = from;
-        sr.sendMsg(fd, neck, content);
+        sr.sendMsg(fd, neck, content, ssl);
     }
 }
 
-void UnloginCenter::addNewUnlogin(int fd)
+void UnloginCenter::addNewUnlogin(int fd, SSL *ssl)
 {
     // 这里后续可以做别的逻辑判断
     for (auto &afd : onlineUnlogin)
@@ -41,7 +41,7 @@ void UnloginCenter::addNewUnlogin(int fd)
     VioletProtNeck neck = {};
     strcpy(neck.command, "nonigsucc");
     std::string tmp("violet");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
     std::cout << "there is " << onlineUnlogin.size() << " on lists" << std::endl;
 }
 
@@ -50,7 +50,7 @@ void UnloginCenter::removeUnlogin(int fd)
     onlineUnlogin.remove_if([fd](int x){ return x == fd; });
     std::cout << "remove #" << fd << " remain: " << onlineUnlogin.size() << std::endl;
 }
-void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)
+void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text, SSL *ssl)
 {
     VioletProtNeck neck = {};
     for (auto &afd : onlineUnlogin)
@@ -60,12 +60,12 @@ void UnloginCenter::privateChate(int fd, uint8_t mto, std::string &text)
             strcpy(neck.name, std::to_string(fd).c_str());
             strcpy(neck.command, (const char *)"nonpb");
             neck.mfrom = fd;
-            sr.sendMsg(mto, neck, text);
+            sr.sendMsg(mto, neck, text, ssl);
             return;
         }
     }
     strcpy(neck.command, (const char *)"nonperr");
     strcpy(neck.name, std::to_string(mto).c_str());
     std::string tmp("user not online");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
 }

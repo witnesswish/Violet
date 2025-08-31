@@ -8,6 +8,8 @@
 #include <set>
 #include <sys/socket.h>
 #include <list>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "protocol.h"
 #include "redishelper.h"
@@ -30,14 +32,14 @@ public:
 
 public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
-    int vlogin(int fd, std::string username, std::string password, std::string &userInfo);
+    int vlogin(int fd, std::string username, std::string password, std::string &userInfo, SSL *ssl);
     int vaddFriend(std::string requestName, std::string firName);
     int vaddGroup(std::string requestName, std::string groupName, int fd);
     int vcreateGroup(std::string reqName, std::string groupName, int fd);
     int vprivateChat(std::string firName);
-    void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content);
-    void vofflineHandle(int fd);
-    void vhandleVbulre(int fd, std::string requestName, std::string friName);
+    void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content, SSL *ssl);
+    void vofflineHandle(int fd, SSL *ssl);
+    void vhandleVbulre(int fd, std::string requestName, std::string friName, SSL *ssl);
 
 private:
     SRHelper sr;

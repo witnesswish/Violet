@@ -25,6 +25,8 @@ void SRHelper::sendMsg(int fd, uint16_t msgType, const std::string &content, SSL
     }
     else
     {
+        std::cout<< "error on send, sock fd should not use any more" <<std::endl;
+        return;
         if (send(fd, packet.data(), packet.size(), 0) < 0)
         {
             perror("send msg error");
@@ -42,13 +44,25 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, std::string &content, SS
     msg.header = header;
     msg.content.assign(content.begin(), content.end());
     auto packet = msg.serialize();
-    if (send(fd, packet.data(), packet.size(), 0) < 0)
+    if(ssl != nullptr)
     {
-        perror("send msg error");
+        if(SSL_write(ssl, packet.data(), packet.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
     }
     else
     {
-        std::cout << "send msg success" << std::endl;
+        std::cout<< "error on send, sock fd should not use any more" <<std::endl;
+        return;
+        if (send(fd, packet.data(), packet.size(), 0) < 0)
+        {
+            perror("send msg error");
+        }
+        else
+        {
+            std::cout << "send msg success" << std::endl;
+        }
     }
 }
 
@@ -63,13 +77,25 @@ void SRHelper::sendMsg(int fd, VioletProtNeck neck, std::string &content, SSL *s
     msg.neck = neck;
     msg.content.assign(content.begin(), content.end());
     auto packet = msg.serialize();
-    if (send(fd, packet.data(), packet.size(), 0) < 0)
+    if(ssl != nullptr)
     {
-        perror("send msg error");
+        if(SSL_write(ssl, packet.data(), packet.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
     }
     else
     {
-        std::cout << "send msg success" << std::endl;
+        std::cout<< "error on send, sock fd should not use any more" <<std::endl;
+        return;
+        if (send(fd, packet.data(), packet.size(), 0) < 0)
+        {
+            perror("send msg error");
+        }
+        else
+        {
+            std::cout << "send msg success" << std::endl;
+        }
     }
 }
 
@@ -80,13 +106,25 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, VioletProtNeck neck, std
     msg.neck = neck;
     msg.content.assign(content.begin(), content.end());
     auto packet = msg.serialize();
-    if (send(fd, packet.data(), packet.size(), 0) < 0)
+    if(ssl != nullptr)
     {
-        perror("send msg error");
+        if(SSL_write(ssl, packet.data(), packet.size()) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
     }
     else
     {
-        std::cout << "send msg success" << std::endl;
+        std::cout<< "error on send, sock fd should not use any more" <<std::endl;
+        return;
+        if (send(fd, packet.data(), packet.size(), 0) < 0)
+        {
+            perror("send msg error");
+        }
+        else
+        {
+            std::cout << "send msg success" << std::endl;
+        }
     }
 }
 
@@ -152,7 +190,8 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
         Msg spByteRead;
         std::vector<char> recvBuffer(byteToRead);
         ssize_t totalRead = 0;
-        ssize_t len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+        //ssize_t len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+        int len = SSL_read(ssl, recvBuffer.data(), recvBuffer.size());
         totalRead = len;
         if(len < 0)
         {
@@ -173,7 +212,8 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
             while(tmp > 0)
             {
                 spByteRead.content.assign(recvBuffer.begin(), recvBuffer.begin()+totalRead);
-                len = recv(fd, recvBuffer.data()+totalRead, recvBuffer.size()-totalRead, 0);
+                //len = recv(fd, recvBuffer.data()+totalRead, recvBuffer.size()-totalRead, 0);
+                len = SSL_read(ssl, recvBuffer.data()+totalRead, recvBuffer.size()-totalRead);
                 if(len < 0)
                 {
                     break;
@@ -205,7 +245,8 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
         }
         return spByteRead;
     }
-    ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
+    //ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
+    int len = SSL_peek(ssl, &header, sizeof(header));
     std::cout << "peek len: " << len << " of recv" << std::endl;
     if (len == 0)
     {
@@ -258,7 +299,8 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
     std::cout << "total len to malloc " << totaLen << " of recv" << std::endl;
     std::vector<char> recvBuffer(totaLen);
     std::cout<< "total len of recv buff: " << recvBuffer.size() <<std::endl;
-    len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+    //len = recv(fd, recvBuffer.data(), recvBuffer.size(), 0);
+    len = SSL_read(ssl, recvBuffer.data(), recvBuffer.size());
     if(len == 0)
     {
         std::cout << "read 0, goint to kinck user out" <<std::endl;
@@ -290,7 +332,8 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
         tmp = tmp - len;
         while(tmp-len >= 0)
         {
-            len = recv(fd, recvBuffer.data()+len, tmp-len, 0);
+            //len = recv(fd, recvBuffer.data()+len, tmp-len, 0);
+            len = SSL_read(ssl, recvBuffer.data()+len, tmp-len);
             std::cout<< "contunie read " << len << " of bytes";
             tmp = tmp - len;
             if(len < 0)

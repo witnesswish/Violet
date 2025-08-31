@@ -137,7 +137,7 @@ void Server::vread_cb(int fd, SSL *ssl)
             }
             else
             {
-                ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen);
+                ret = sr.recvMsg(fd, murb.expectLen - murb.actuaLen, ssl);
                 if(ret != std::nullopt)
                 {
                     murb.actuaLen += ret->header.checksum;
@@ -172,7 +172,7 @@ void Server::vread_cb(int fd, SSL *ssl)
         }
         else
         {
-            ret = sr.recvMsg(fd, -1);
+            ret = sr.recvMsg(fd, -1, ssl);
             std::cout<< "content length: " << ret->header.length << "--" << ret->header.checksum << "--" << ntohl(ret->header.length) <<std::endl;
         }
         if((ssize_t)ret->header.checksum < ntohl(ret->header.length))
@@ -231,39 +231,39 @@ void Server::vread_cb(int fd, SSL *ssl)
                     std::cout << command << "-" << username << "-" << password << "-" << content << std::endl;
                     if (command == "vreg")
                     {
-                        vregister(fd, username, password, ccdemail);
+                        vregister(fd, username, password, ccdemail, ssl);
                     }
                     if (command == "vlogin")
                     {
-                        vlogin(fd, username, password);
+                        vlogin(fd, username, password, ssl);
                     }
                     if (command == "vbulre")
                     {
-                        loginCenter.vhandleVbulre(fd, username, password);
+                        loginCenter.vhandleVbulre(fd, username, password, ssl);
                     }
                     if (command == "vaddf")
                     {
-                        vaddFriend(fd, username, content);
+                        vaddFriend(fd, username, content, ssl);
                     }
                     if (command == "vaddg")
                     {
-                        vaddGroup(fd, username, content);
+                        vaddGroup(fd, username, content, ssl);
                     }
                     if (command == "vcrtg")
                     {
-                        vcreateGroup(fd, username, content);
+                        vcreateGroup(fd, username, content, ssl);
                     }
                     if(command == "vpc")
                     {
-                        vprivateChat(fd, username, password, content);
+                        vprivateChat(fd, username, password, content, ssl);
                     }
                     if(command == "vgc")
                     {
-                        vgroupChat(fd, username, password, content);
+                        vgroupChat(fd, username, password, content, ssl);
                     }
                     if(command == "vtfs")
                     {
-                        vuploadFile(fd, username, password);
+                        vuploadFile(fd, username, password, ssl);
                     }
                     if(command == "vtfr")
                     {
@@ -281,7 +281,7 @@ void Server::vread_cb(int fd, SSL *ssl)
                         strcpy(neck.command, "nonsucc");
                         strcpy(neck.name, std::to_string(fd).c_str());
                         std::string tmp = std::string("violet");
-                        sr.sendMsg(fd, neck, tmp);
+                        sr.sendMsg(fd, neck, tmp, ssl);
                     }
                     if (command == std::string("nong"))
                     {
@@ -290,7 +290,7 @@ void Server::vread_cb(int fd, SSL *ssl)
                     }
                     if (command == std::string("nonig"))
                     {
-                        unlogin.addNewUnlogin(fd);
+                        unlogin.addNewUnlogin(fd, ssl);
                     }
                     if (command == std::string("nonqg"))
                     {
@@ -298,7 +298,7 @@ void Server::vread_cb(int fd, SSL *ssl)
                     }
                     if (command == std::string("nonp"))
                     {
-                        unlogin.privateChate(fd, ret->neck.mto, text);
+                        unlogin.privateChate(fd, ret->neck.mto, text, ssl);
                     }
                 }
             }
@@ -313,7 +313,7 @@ void Server::startServer()
     while (running)
     {
         int epoll_events_count = epoll_wait(epfd, events, EPOLL_SIZE, -1);
-        std::cout<< "on running ..." << epoll_events_count <<std::endl;
+        //std::cout<< "on running ..." << epoll_events_count <<std::endl;
         if (epoll_events_count < 0)
         {
             perror("epoll event count error");
@@ -322,14 +322,14 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
-            std::cout<< "on for lop ..." << events[i].data.fd <<std::endl;
+            //std::cout<< "on for lop ..." << events[i].data.fd <<std::endl;
             SSL *fssl = (SSL *)events[i].data.ptr;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
                 std::cout<< "错误或挂起，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
-                vofflineHandle(events[i].data.fd);
-                removefd(events[i].data.fd, epfd);
+                vofflineHandle(events[i].data.fd, fssl);
+                removefd(events[i].data.fd, epfd, fssl);
                 close(events[i].data.fd);
                 continue;
             }
@@ -338,7 +338,7 @@ void Server::startServer()
                 std::cout<< "对端关闭连接，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(events[i].data.fd);
                 vofflineHandle(events[i].data.fd);
-                removefd(events[i].data.fd, epfd);
+                removefd(events[i].data.fd, epfd, fssl);
                 close(events[i].data.fd);
                 continue;
             }
@@ -353,8 +353,8 @@ void Server::startServer()
                     if(client > 0)
                     {
                         std::cout << "client connection from: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << ", clientfd = #" << client << std::endl;
-                        //pool.enqueue([this, client](){this->vsayWelcome(client);});
-                        vsayWelcome(client);
+                        pool.enqueue([this, client](){this->vsayWelcome(client);});
+                        //vsayWelcome(client);
                     }
                     else
                     {
@@ -391,14 +391,14 @@ void Server::closeServer()
         close(sock);
 }
 
-void Server::vregister(int fd, std::string username, std::string password, std::string email)
+void Server::vregister(int fd, std::string username, std::string password, std::string email, SSL *ssl)
 {
     if(!regex_match(email, emailreg))
     {
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("email type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(!regex_match(username, namereg))
@@ -406,7 +406,7 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("name type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     int ret = loginCenter.vregister(username, password, email, "salt");
@@ -415,7 +415,7 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("violet");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(ret == 1)
@@ -423,7 +423,7 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("username exists");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(ret == 2)
@@ -431,7 +431,7 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregerr");
         std::string tmp("email exists");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(ret == 0)
@@ -439,22 +439,22 @@ void Server::vregister(int fd, std::string username, std::string password, std::
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vregsucc");
         std::string tmp("violet");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
     }
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char *)"vregerr");
     std::string tmp("violet");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
 }
 
-void Server::vaddFriend(int fd, std::string reqName, std::string friName)
+void Server::vaddFriend(int fd, std::string reqName, std::string friName, SSL *ssl)
 {
     if(!regex_match(friName, namereg))
     {
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vaddferr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(!regex_match(reqName, namereg))
@@ -462,7 +462,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vaddferr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     VioletProtNeck neck = {};
@@ -471,7 +471,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
     {
         strcpy(neck.command, "vaddfsucc");
         memcpy(neck.name, friName.c_str(), sizeof(neck.name));
-        sr.sendMsg(fd, neck, friName);
+        sr.sendMsg(fd, neck, friName, ssl);
         return;
     }
     if(ret == 1)
@@ -480,23 +480,23 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName)
         strcpy(neck.command, "vaddferr");
         memcpy(neck.name, friName.c_str(), sizeof(neck.name));
         std::string tmp = std::string("friend you add is not exists: ") + friName;
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     std::cout<< "add friend error, function return: " << ret <<std::endl;
     strcpy(neck.command, "vaddferr");
     std::string tmp("violet");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
 }
 
-void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
+void Server::vaddGroup(int fd, std::string reqName, std::string groupName, SSL *ssl)
 {
     if(!regex_match(groupName, namereg))
     {
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vaddgerr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(!regex_match(reqName, namereg))
@@ -504,7 +504,7 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vaddgerr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     VioletProtNeck neck = {};
@@ -514,7 +514,7 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
     {
         strcpy(neck.command, "vaddgsucc");
         memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
-        sr.sendMsg(fd, neck, groupName);
+        sr.sendMsg(fd, neck, groupName, ssl);
         return;
     }
     if(ret == 1)
@@ -522,22 +522,22 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName)
         strcpy(neck.command, "vaddgerr");
         memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
         std::string tmp("group not exists");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     strcpy(neck.command, "vaddgerr");
     std::string tmp("violet");
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
 }
 
-void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
+void Server::vcreateGroup(int fd, std::string reqName, std::string groupName, SSL *ssl)
 {
     if(!regex_match(groupName, namereg))
     {
         VioletProtNeck neck = {};
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(!regex_match(reqName, namereg))
@@ -545,7 +545,7 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
         VioletProtNeck neck = {};
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     VioletProtNeck neck = {};
@@ -554,25 +554,25 @@ void Server::vcreateGroup(int fd, std::string reqName, std::string groupName)
     {
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("violet");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if (ret == 0)
     {
         strcpy(neck.command, "vcrtgsucc");
-        sr.sendMsg(fd, neck, groupName);
+        sr.sendMsg(fd, neck, groupName, ssl);
         return;
     }
     if (ret == 1)
     {
         strcpy(neck.command, "vcrtgerr");
         std::string tmp("exists");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
 }
 
-void Server::vprivateChat(int fd, std::string reqName, std::string friName, std::string content)
+void Server::vprivateChat(int fd, std::string reqName, std::string friName, std::string content, SSL *ssl)
 {
     std::cout<< "vpc params: " << reqName << "-" << friName << "-" << content <<std::endl;
     VioletProtNeck neck = {};
@@ -582,7 +582,7 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
     {
         strcpy(neck.command, "vpcerr");
         std::string tmp("user not online, message will be sent after user online");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
 
         // 下面是做缓存，缓冲用redis的sorted set来做，zadd 用户名 时间戳 拼接后的消息
         // 拼接消息的格式：发送者|消息内容
@@ -601,20 +601,20 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
     }
     strcpy(neck.command, "vpcb");
     memcpy(neck.name, reqName.c_str(), sizeof(reqName));
-    sr.sendMsg(friId, neck, content);
+    sr.sendMsg(friId, neck, content, ssl);
 }
 
-void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::string content)
+void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::string content, SSL *ssl)
 {
-    loginCenter.vgroupChat(fd, reqName, gname, content);
+    loginCenter.vgroupChat(fd, reqName, gname, content, ssl);
 }
 
-void Server::vofflineHandle(int fd)
+void Server::vofflineHandle(int fd, SSL *ssl)
 {
-    loginCenter.vofflineHandle(fd);
+    loginCenter.vofflineHandle(fd, ssl);
 }
 
-void Server::vuploadFile(int fd, std::string reqName, std::string friName)
+void Server::vuploadFile(int fd, std::string reqName, std::string friName, SSL *ssl)
 {
     VioletProtNeck neck = {};
     int tmpPort = ppl.getPort();
@@ -624,19 +624,19 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
         memcpy(neck.name, friName.c_str(), sizeof(neck.name));
         memcpy(neck.pass, friName.c_str(), sizeof(neck.pass));
         std::string tmp("file system not avaliable right now, try it later");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     pool.enqueue([this, tmpPort](){return this->file.vuploadFile(tmpPort);});
     strcpy(neck.command, "vtfspot");
     std::string tmp(std::to_string(tmpPort));
-    sr.sendMsg(fd, neck, tmp);
+    sr.sendMsg(fd, neck, tmp, ssl);
     // 这部分要到那边去发送，不关线程失败还是成功。
     // if(ret.get() < 0)
     // {
     //     strcpy(neck.command, "vtfserr");
     //     std::string tmp("file system not avaliable right now, try it later");
-    //     sr.sendMsg(fd, neck, tmp);
+    //     sr.sendMsg(fd, neck, tmp, ssl);
     //     return;
     // }
     // else
@@ -644,7 +644,7 @@ void Server::vuploadFile(int fd, std::string reqName, std::string friName)
     //     // 这里发消息给接收方，提醒他好友发文件，并且给他一个端口
     //     strcpy(neck.command, "vtfspot");
     //     std::string tmp(std::to_string(tmpPort));
-    //     sr.sendMsg(fd, neck, tmp);
+    //     sr.sendMsg(fd, neck, tmp, ssl);
     //     return;
     // }
 }
@@ -654,8 +654,8 @@ void Server::vsayWelcome(int fd)
     std::cout<< "into say hello function" <<std::endl;
     // 当连接到来，先进行ssl握手，再sayhello，如果握手不成功，直接关闭
     // 创建一个SSL对象
-    SSL *ssl = SSL_new(ctx);
-    if (!ssl)
+    SSL *sslWelcome = SSL_new(ctx);
+    if (!sslWelcome)
     {
         ERR_print_errors_fp(stderr);
         close(fd); // 绑定失败的话关闭TCP连接，先关闭，如果要协商，后续再继续添加
@@ -663,63 +663,66 @@ void Server::vsayWelcome(int fd)
     }
 
     // 将SSL对象与fd关联起来
-    if (SSL_set_fd(ssl, fd) != 1)
+    if (SSL_set_fd(sslWelcome, fd) != 1)
     {
         ERR_print_errors_fp(stderr);
-        SSL_free(ssl);
+        SSL_free(sslWelcome);
         close(fd);  //关联失败，关闭tcp，先关闭
         return;
     }
     // 在TCP连接之上进行SSL握手
-    int acceptRet = SSL_accept(ssl);
+    int acceptRet = SSL_accept(sslWelcome);
+    auto last_time = std::chrono::steady_clock::now();
+    constexpr long long INTERVAL_MS = 5000;
     while(acceptRet <= 0)
     {
         char tmp[1024];
-        int err = SSL_get_error(ssl, acceptRet);
+        int err = SSL_get_error(sslWelcome, acceptRet);
         fprintf(stderr, "SSL_accept failed with error %d\n", err);
-        // 如果ssl握手过程中有数据可读或可写，那么直接读出来丢弃，应该保证在握手之前没有数据可写
+        // 如果ssl握手过程中，非阻塞会立即返回，要做判断
         if(err == SSL_ERROR_WANT_READ)
         {
-            int ret = recv(fd, tmp, sizeof(tmp), 0);
-            while(ret >= 0)
-            {
-                ret = recv(fd, tmp, sizeof(tmp), 0);
-            }
-            acceptRet = SSL_accept(ssl);
+            std::cout<< "more things to read, trying..." <<std::endl;
+            acceptRet = SSL_accept(sslWelcome);
         }
         else if(err ==  SSL_ERROR_WANT_WRITE)
         {
-            int ret = send(fd, tmp, sizeof(tmp), 0);
-            while(ret > 0)
-            {
-                ret = send(fd, tmp, sizeof(tmp), 0);
-            }
-            acceptRet = SSL_accept(ssl);
+            std::cout<< "more things to write, trying..." <<std::endl;
+            acceptRet = SSL_accept(sslWelcome);
         }
         else
         {
             ERR_print_errors_fp(stderr);
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
+            SSL_shutdown(sslWelcome);
+            SSL_free(sslWelcome);
             close(fd);
             return;
         }
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count() >= INTERVAL_MS) {
+            ERR_print_errors_fp(stderr);
+            SSL_shutdown(sslWelcome);
+            SSL_free(sslWelcome);
+            close(fd);
+            return;
+            last_time = now; // 更新时间
+        }
     }
-    printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(ssl));
+    printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(sslWelcome));
 
     // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
     std::cout<< "re confirm fd is #" << fd <<std::endl;
-    addfd(fd, epfd, ssl);
+    addfd(fd, epfd, sslWelcome);
     // clients_list.push_back(clientfd);一些操作
     std::string welcome = "welcome, your id is #";
     welcome += std::to_string(fd);
     welcome += ", enjoy yourself";
     std::cout << "welcome: " << welcome << std::endl;
-    sr.sendMsg(fd, 0, welcome, ssl);
+    sr.sendMsg(fd, 0, welcome, sslWelcome);
 }
 
-void Server::vlogin(int fd, std::string username, std::string password)
+void Server::vlogin(int fd, std::string username, std::string password, SSL *ssl)
 {
     //只需要拦截用户名
     if(!regex_match(username, namereg))
@@ -727,19 +730,19 @@ void Server::vlogin(int fd, std::string username, std::string password)
         VioletProtNeck neck = {};
         strcpy(neck.command, "vloginerr");
         std::string tmp("type error");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     memset(&u, 0, sizeof(u));
     std::string userinfo;
-    int ret = loginCenter.vlogin(fd, username, password, userinfo);
+    int ret = loginCenter.vlogin(fd, username, password, userinfo, ssl);
     if (ret < 0)
     {
         std::cout<< "login failure, function return: " << ret <<std::endl;
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("violet");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(ret == 1)
@@ -748,7 +751,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("incorrect");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if (ret == 2)
@@ -757,7 +760,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("incorrect");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     if(ret == 3)
@@ -766,7 +769,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
         VioletProtNeck neck = {};
         strcpy(neck.command, (const char *)"vloginerr");
         std::string tmp("incorrect");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         return;
     }
     // for (const auto &it : u.friends)
@@ -780,7 +783,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
     VioletProtNeck neck = {};
     strcpy(neck.command, (const char *)"vloginsucc");
     memcpy(neck.name, username.c_str(), sizeof(neck.name));
-    sr.sendMsg(fd, neck, userinfo);
+    sr.sendMsg(fd, neck, userinfo, ssl);
     std::cout<< "login success, user: " << username <<std::endl;
 
     //get cache and send
@@ -826,7 +829,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
                         //std::cout << "ser recv: " << userinfo << std::endl;
-                        sr.sendMsg(fd, neck, content);
+                        sr.sendMsg(fd, neck, content, ssl);
                     }
                 }
             }
@@ -858,7 +861,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
                         //std::cout << "ser recv: " << userinfo << std::endl;
-                        sr.sendMsg(fd, neck, content);
+                        sr.sendMsg(fd, neck, content, ssl);
                     }
                 }
             }
@@ -890,7 +893,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
                         //std::cout << "ser recv: " << userinfo << std::endl;
-                        sr.sendMsg(fd, neck, content);
+                        sr.sendMsg(fd, neck, content, ssl);
                     }
                 }
             }
@@ -922,7 +925,7 @@ void Server::vlogin(int fd, std::string username, std::string password)
                         strcpy(neck.command, "vpcache");
                         memcpy(neck.name, from.c_str(), sizeof(neck.name));
                         //std::cout << "ser recv: " << userinfo << std::endl;
-                        sr.sendMsg(fd, neck, content);
+                        sr.sendMsg(fd, neck, content, ssl);
                     }
                 }
             }

@@ -86,7 +86,7 @@ int LoginCenter::vregister(std::string username, std::string password, std::stri
  * @return -1 for database error
  * 0 for succ, 1 for username not exists, 2 for password error
  */
-int LoginCenter::vlogin(int fd, std::string username, std::string password, std::string &userinfo)
+int LoginCenter::vlogin(int fd, std::string username, std::string password, std::string &userinfo, SSL *ssl)
 {
     auto conn = MariadbHelper::getInstance().getConnection();
     User u;
@@ -133,7 +133,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                     strcpy(neck.command, "vbul");
                     strcpy(neck.name, username.c_str());
                     std::string tmp("violet");
-                    sr.sendMsg(std::stoi(it), neck, tmp);
+                    sr.sendMsg(std::stoi(it), neck, tmp, ssl);
                     onlineUserFriend[fd].push_back(std::stoi(it));
                     std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << onlineUserFriend[fd].size() <<std::endl;
                 }
@@ -172,7 +172,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
  * 理论上来说插入好友关系的时候，应该固定好小的id在前还是大的id在前，不过没关系啦，我写的sql够复杂
  * 我写这段话只是希望下次我看到的时候把这里改一下，这样应该好查一点
  */
-int LoginCenter::vaddFriend(std::string requestName, std::string friName)
+int LoginCenter::vaddFriend(std::string requestName, std::string friName, SSL *ssl)
 {
     auto conn = MariadbHelper::getInstance().getConnection();
     std::vector<sql::SQLString> params = {requestName, requestName, friName, friName};
@@ -221,7 +221,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName)
                     strcpy(neck.command, "vafed");
                     memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
                     std::string tmp("violet");
-                    sr.sendMsg(std::stoi(d), neck, tmp);
+                    sr.sendMsg(std::stoi(d), neck, tmp, ssl);
                     std::cout<< "send add fri to fri success" <<std::endl;
                 }
             }
@@ -351,7 +351,7 @@ int LoginCenter::vprivateChat(std::string friName)
     return -1;
 }
 
-void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupName, std::string content)
+void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupName, std::string content, SSL *ssl)
 {
     std::cout<< "params: " << requestName << groupName <<std::endl;
     auto it = onlineGUMap.find(groupName);
@@ -367,7 +367,7 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         {
             if(it != fd)
             {
-                sr.sendMsg(it, neck, content);
+                sr.sendMsg(it, neck, content, ssl);
             }
         }
     }
@@ -377,7 +377,7 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         strcpy(neck.command, "vgcerr");
         memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
         std::string tmp("group not found");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
     }
 }
 
@@ -387,7 +387,7 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
  * 下线要做的事情：1. 给好友发送下线通知 2. 将用户fd从群组在线删除
  * 再多维护一个在线用户列表
  */
-void LoginCenter::vofflineHandle(int fd)
+void LoginCenter::vofflineHandle(int fd, SSL *ssl)
 {
     std::string tmpname;
     std::string tmpcount;
@@ -409,7 +409,7 @@ void LoginCenter::vofflineHandle(int fd)
             strcpy(neck.command, "vbol");
             memcpy(neck.name, tmpname.c_str(), sizeof(neck.name));
             std::string tmp("violet");
-            sr.sendMsg(*j, neck, tmp);
+            sr.sendMsg(*j, neck, tmp, ssl);
             std::cout<< "send offline msg on offliehandle for: " << *j <<std::endl;
             auto refedHand = onlineUserFriend.find(*j);
             if(refedHand != onlineUserFriend.end())
@@ -474,7 +474,7 @@ void LoginCenter::vofflineHandle(int fd)
     }
 }
 
-void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string friName)
+void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string friName, SSL *ssl)
 {
     auto ret = redis.execute("HGET %s fd", friName.c_str());
     if(ret != std::nullopt)
@@ -489,7 +489,7 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
                 strcpy(neck.command, "vbul");
                 memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
                 std::string tmp("violet");
-                sr.sendMsg(std::stoi(it), neck, tmp);
+                sr.sendMsg(std::stoi(it), neck, tmp, ssl);
                 onlineUserFriend[fd].push_back(std::stoi(it));
             }
         }
@@ -500,7 +500,7 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
         strcpy(neck.command, "vbulerr");
         memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
         std::string tmp("user not online");
-        sr.sendMsg(fd, neck, tmp);
+        sr.sendMsg(fd, neck, tmp, ssl);
         std::cout<< "vbul error, user not online" <<std::endl;
     }
 }

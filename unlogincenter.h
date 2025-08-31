@@ -3,6 +3,8 @@
 
 #include <list>
 #include <sys/socket.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "protocol.h"
 
@@ -17,10 +19,10 @@ private:
     static std::list<int> onlineUnlogin;
 
 public:
-    void sendBordcast(int, std::string);
-    void addNewUnlogin(int fd);
+    void sendBordcast(int, std::string, ssl);
+    void addNewUnlogin(int fd, ssl);
     void removeUnlogin(int fd);
-    void privateChate(int fd, uint8_t mto, std::string &);
+    void privateChate(int fd, uint8_t mto, std::string &, ssl);
 };
 
 #endif // UNLOGINCENTER_H
