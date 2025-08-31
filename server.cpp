@@ -325,8 +325,9 @@ void Server::startServer()
             auto ptry = events[i].data.ptr;
             if(fd<0 || fd>100)
             {
-                ConnectionInfo *ptrz = (ConnectionInfo *)ptry;
-                std::cout<< "ptr value: fd: " << ptrz->fd <<std::endl;
+                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                std::shared_ptr<ConnectionInfo> conn = *ptrz;
+                std::cout<< "ptr value: fd: " << conn->fd <<std::endl;
             }
             else
             {
@@ -336,11 +337,12 @@ void Server::startServer()
             std::cout<< "on  server for lop ..." << fd <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
-                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                fssl = ptrx->ssl;
+                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                std::shared_ptr<ConnectionInfo> conn = *ptrz;
+                fssl = conn->ssl;
                 if(fssl != nullptr)
                 {
-                    fd = ptrx->fd;
+                    fd = conn->fd;
                 }
                 std::cout<< "错误或挂起，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(fd);
@@ -351,11 +353,12 @@ void Server::startServer()
             }
             if (events[i].events & EPOLLRDHUP)
             {
-                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                fssl = ptrx->ssl;
+                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                std::shared_ptr<ConnectionInfo> conn = *ptrz;
+                fssl = conn->ssl;
                 if(fssl != nullptr)
                 {
-                    fd = ptrx->fd;
+                    fd = conn->fd;
                 }
                 std::cout<< "对端关闭连接，调用关闭程序" <<std::endl;
                 unlogin.removeUnlogin(fd);
@@ -395,9 +398,11 @@ void Server::startServer()
             }
             else
             {
-                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
-                fssl = ptrx->ssl;
-                int ffd = ptrx->fd;
+                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                std::shared_ptr<ConnectionInfo> conn = *ptrz;
+                std::cout<< "ptr value: fd: " << conn->fd <<std::endl;
+                fssl = conn->ssl;
+                int ffd = conn->fd;
                 if(fssl != nullptr)
                 {
                     vread_cb(ffd, fssl);
@@ -626,7 +631,14 @@ void Server::vprivateChat(int fd, std::string reqName, std::string friName, std:
     }
     strcpy(neck.command, "vpcb");
     memcpy(neck.name, reqName.c_str(), sizeof(reqName));
-    sr.sendMsg(friId, neck, content, ssl);
+    {
+        std::lock_guard<std::mutex> lock(fdSslMapMutex);
+        auto iterator = fdSslMap.find(friId);
+        if (iterator != fdSslMap.end())
+        {
+            sr.sendMsg(friId, neck, content, iterator->second);
+        }
+    }
 }
 
 void Server::vgroupChat(int fd, std::string reqName, std::string gname, std::string content, SSL *ssl)

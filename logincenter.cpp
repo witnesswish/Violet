@@ -13,7 +13,7 @@
  */
 std::map<std::string, std::vector<ConnectionInfo>> LoginCenter::onlineGUMap{};
 std::map<int, std::list<ConnectionInfo>> LoginCenter::onlineUserFriend{};
-std::map<int, std::string> LoginCenter::onlineUser{};
+std::map<int, std::string> LoginCenter::onlineUser;
 LoginCenter::LoginCenter()
 {
     redis.connectRedis("127.0.0.1", 6379);
@@ -172,6 +172,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
     userinfo = serializeTwoVector(u.friends, u.groups);
     // update online user
     onlineUser[fd] = username;
+    std::cout<< "on logincenter vlogin onlineUser size: " << onlineUser.size() <<std::endl;
     return 0;
 }
 
@@ -409,6 +410,7 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
 {
     std::string tmpname;
     std::string tmpcount;
+    std::cout<< "on logincenter vofflineHandle onlineUser size: " << onlineUser.size() << " and fd: " << fd <<std::endl;
     auto it = onlineUser.find(fd);
     if(it != onlineUser.end())
     {
