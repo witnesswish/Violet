@@ -143,7 +143,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                             ConnectionInfo conInfo;
                             conInfo.fd = std::stoi(it);
                             conInfo.ssl = iterator->second;
-                            onlineUserFriend[fd] = conInfo;
+                            onlineUserFriend[fd].push_back(conInfo);
                             std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << iterator->second << "--" << onlineUserFriend[fd].size() <<std::endl;
                         }
                     }

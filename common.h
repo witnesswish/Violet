@@ -9,6 +9,7 @@
 #include <openssl/err.h>
 #include <mutex>
 #include <unordered_map>
+#include <memory>
 
 #define SERVER_WELCOME "Welcome you join to the chat room! Your chat ID is: Client #%d"
 #define BUFFER_SIZE 0xFFFF
@@ -28,17 +29,21 @@ struct ConnectionInfo
 extern std::unordered_map<int, SSL*> fdSslMap;
 extern std::mutex fdSslMapMutex;
 
-inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_et = true)
+inline void addfd(int fd, int epfd, std::shared_ptr<ConnectionInfo> ptr = nullptr, bool enable_et = true)
 {
     struct epoll_event ev;
-    ev.data.fd = fd;
     ev.events = EPOLLIN;
     if(ptr != nullptr)
     {
-        ev.data.ptr = ptr;
+        auto* fdSslPtr = new std::shared_ptr<ConnectionInfo>(ptr);
+        ev.data.ptr = fdSslPtr;
         std::lock_guard<std::mutex> lock(fdSslMapMutex);
         fdSslMap[fd] = ptr->ssl;
         std::cout << "fd #" << ptr->fd << " added to epoll" << std::endl;
+    }
+    else
+    {
+        ev.data.fd = fd;
     }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;

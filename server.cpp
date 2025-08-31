@@ -323,7 +323,7 @@ void Server::startServer()
         {
             int fd = events[i].data.fd;
             auto ptry = events[i].data.ptr;
-            if(ptry != nullptr)
+            if(fd<0 || fd>100)
             {
                 ConnectionInfo *ptrz = (ConnectionInfo *)ptry;
                 std::cout<< "ptr value: fd: " << ptrz->fd <<std::endl;
@@ -737,11 +737,13 @@ void Server::vsayWelcome(int fd)
         }
     }
     printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(sslWelcome));
-    ConnectionInfo connInfo{fd, sslWelcome};
+    auto connInfo = std::make_shared<ConnectionInfo>();
+    connInfo->fd = fd;
+    connInfo->ssl = sslWelcome;
     // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
     std::cout<< "re confirm fd is #" << fd <<std::endl;
-    addfd(fd, epfd, &connInfo);
+    addfd(fd, epfd, connInfo);
     // clients_list.push_back(clientfd);一些操作
     std::string welcome = "welcome, your id is #";
     welcome += std::to_string(fd);

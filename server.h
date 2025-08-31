@@ -11,6 +11,7 @@
 #include <regex>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <memory>
 
 #include "protocol.h"
 #include "unlogincenter.h"
