@@ -146,7 +146,7 @@ void Server::vread_cb(int fd, SSL *ssl)
                     {
                         std::cout<< "read special byte, get 0, knicking user out" <<std::endl;
                         unlogin.removeUnlogin(fd);
-                        vofflineHandle(fd);
+                        vofflineHandle(fd, ssl);
                         bytesReady = 1;
                     }
                     if(murb.actuaLen < murb.expectLen)
@@ -212,7 +212,7 @@ void Server::vread_cb(int fd, SSL *ssl)
             {
                 //HMSET %s fd %s id %s stat %s
                 unlogin.removeUnlogin(fd);
-                vofflineHandle(fd);
+                vofflineHandle(fd, ssl);
                 bytesReady = 1;
             }
             else
@@ -286,7 +286,7 @@ void Server::vread_cb(int fd, SSL *ssl)
                     if (command == std::string("nong"))
                     {
                         std::cout << "nong content to string: " << std::string(ret->content.begin(), ret->content.end()) << std::endl;
-                        unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()));
+                        unlogin.sendBordcast(fd, std::string(ret->content.begin(), ret->content.end()), ssl);
                     }
                     if (command == std::string("nonig"))
                     {
@@ -322,24 +322,34 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
-            //std::cout<< "on for lop ..." << events[i].data.fd <<std::endl;
-            SSL *fssl = (SSL *)events[i].data.ptr;
+            std::cout<< "on  server for lop ..." << fd <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
+                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
+                SSL *fssl = ptrx->ssl;
+                if(fssl != nullptr)
+                {
+                    fd = ptrx->fd;
+                }
                 std::cout<< "错误或挂起，调用关闭程序" <<std::endl;
-                unlogin.removeUnlogin(events[i].data.fd);
-                vofflineHandle(events[i].data.fd, fssl);
-                removefd(events[i].data.fd, epfd, fssl);
-                close(events[i].data.fd);
+                unlogin.removeUnlogin(fd);
+                vofflineHandle(fd, fssl);
+                removefd(fd, epfd, fssl);
+                close(fd);
                 continue;
             }
-
             if (events[i].events & EPOLLRDHUP) {
+                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
+                SSL *fssl = ptrx->ssl;
+                if(fssl != nullptr)
+                {
+                    fd = ptrx->fd;
+                }
                 std::cout<< "对端关闭连接，调用关闭程序" <<std::endl;
-                unlogin.removeUnlogin(events[i].data.fd);
-                vofflineHandle(events[i].data.fd);
-                removefd(events[i].data.fd, epfd, fssl);
-                close(events[i].data.fd);
+                unlogin.removeUnlogin(fd);
+                vofflineHandle(fd, fssl);
+                removefd(fd, epfd, fssl);
+                close(fd);
                 continue;
             }
             if (fd == sock)
@@ -353,8 +363,8 @@ void Server::startServer()
                     if(client > 0)
                     {
                         std::cout << "client connection from: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << ", clientfd = #" << client << std::endl;
-                        pool.enqueue([this, client](){this->vsayWelcome(client);});
-                        //vsayWelcome(client);
+                        //pool.enqueue([this, client](){this->vsayWelcome(client);});
+                        vsayWelcome(client);
                     }
                     else
                     {
@@ -373,9 +383,12 @@ void Server::startServer()
             }
             else
             {
+                ConnectionInfo *ptrx = (ConnectionInfo *)events[i].data.ptr;
+                SSL *fssl = ptrx->ssl;
+                int ffd = ptrx->fd;
                 if(fssl != nullptr)
                 {
-                    vread_cb(fd, fssl);
+                    vread_cb(ffd, fssl);
                 }
             }
         }
@@ -466,7 +479,7 @@ void Server::vaddFriend(int fd, std::string reqName, std::string friName, SSL *s
         return;
     }
     VioletProtNeck neck = {};
-    int ret = loginCenter.vaddFriend(reqName, friName);
+    int ret = loginCenter.vaddFriend(reqName, friName, ssl);
     if (ret == 0)
     {
         strcpy(neck.command, "vaddfsucc");
@@ -508,7 +521,7 @@ void Server::vaddGroup(int fd, std::string reqName, std::string groupName, SSL *
         return;
     }
     VioletProtNeck neck = {};
-    int ret = loginCenter.vaddGroup(reqName, groupName, fd);
+    int ret = loginCenter.vaddGroup(reqName, groupName, fd, ssl);
     std::cout << "add g ret: " << ret << std::endl;
     if (ret == 0)
     {
@@ -671,9 +684,10 @@ void Server::vsayWelcome(int fd)
         return;
     }
     // 在TCP连接之上进行SSL握手
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
     int acceptRet = SSL_accept(sslWelcome);
-    auto last_time = std::chrono::steady_clock::now();
     constexpr long long INTERVAL_MS = 5000;
+    auto last_time = std::chrono::steady_clock::now();
     while(acceptRet <= 0)
     {
         char tmp[1024];
@@ -682,12 +696,12 @@ void Server::vsayWelcome(int fd)
         // 如果ssl握手过程中，非阻塞会立即返回，要做判断
         if(err == SSL_ERROR_WANT_READ)
         {
-            std::cout<< "more things to read, trying..." <<std::endl;
+            //std::cout<< "more things to read, trying..." <<std::endl;
             acceptRet = SSL_accept(sslWelcome);
         }
         else if(err ==  SSL_ERROR_WANT_WRITE)
         {
-            std::cout<< "more things to write, trying..." <<std::endl;
+            //std::cout<< "more things to write, trying..." <<std::endl;
             acceptRet = SSL_accept(sslWelcome);
         }
         else
@@ -695,25 +709,28 @@ void Server::vsayWelcome(int fd)
             ERR_print_errors_fp(stderr);
             SSL_shutdown(sslWelcome);
             SSL_free(sslWelcome);
+            std::cout<< "if you read this, it mens ssl con error happened, close fd #" << fd <<std::endl;
             close(fd);
             return;
         }
         auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count() >= INTERVAL_MS) {
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count() >= INTERVAL_MS) 
+        {
             ERR_print_errors_fp(stderr);
             SSL_shutdown(sslWelcome);
             SSL_free(sslWelcome);
             close(fd);
-            return;
+            std::cout<< "if you read this, it mens ssl con not compelete in 5s, close fd #" << fd <<std::endl;
             last_time = now; // 更新时间
+            return;
         }
     }
     printf("if you read this, it means SSL connection established with client. Using cipher: %s\n", SSL_get_cipher(sslWelcome));
-
+    ConnectionInfo connInfo = {fd, sslWelcome};
     // ssl握手已经完成，下面sayhello
     struct sockaddr_in clientAddr;
     std::cout<< "re confirm fd is #" << fd <<std::endl;
-    addfd(fd, epfd, sslWelcome);
+    addfd(fd, epfd, &connInfo);
     // clients_list.push_back(clientfd);一些操作
     std::string welcome = "welcome, your id is #";
     welcome += std::to_string(fd);

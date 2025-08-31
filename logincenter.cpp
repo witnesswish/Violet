@@ -238,7 +238,7 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName, SSL *s
     return -1;
 }
 
-int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd)
+int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd, SSL *ssl)
 {
     auto conn = MariadbHelper::getInstance().getConnection();
     // SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));

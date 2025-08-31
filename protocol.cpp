@@ -68,6 +68,7 @@ void SRHelper::sendMsg(int fd, VioletProtHeader header, std::string &content, SS
 
 void SRHelper::sendMsg(int fd, VioletProtNeck neck, std::string &content, SSL *ssl)
 {
+    std::cout<< "debug on srhelper sendmsg with neck: fd: #" << fd <<std::endl;
     Msg msg;
     msg.header.magic = htonl(0x43484154); // "CHAT"
     msg.header.version = htons(1);
@@ -245,9 +246,10 @@ std::optional<Msg> SRHelper::recvMsg(int fd, ssize_t byteToRead, SSL *ssl)
         }
         return spByteRead;
     }
-    //ssize_t len = recv(fd, &header, sizeof(header), MSG_PEEK);
+    ssize_t oldlen = recv(fd, &header, sizeof(header), MSG_PEEK);
     int len = SSL_peek(ssl, &header, sizeof(header));
-    std::cout << "peek len: " << len << " of recv" << std::endl;
+    int ggb = SSL_get_error(ssl, len);
+    std::cout << "peek len: " << ggb << " and " << oldlen << " of recv" << std::endl;
     if (len == 0)
     {
         close(fd);

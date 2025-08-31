@@ -33,8 +33,8 @@ public:
 public:
     int vregister(std::string username, std::string password, std::string email, std::string salt);
     int vlogin(int fd, std::string username, std::string password, std::string &userInfo, SSL *ssl);
-    int vaddFriend(std::string requestName, std::string firName);
-    int vaddGroup(std::string requestName, std::string groupName, int fd);
+    int vaddFriend(std::string requestName, std::string firName, SSL *ssl);
+    int vaddGroup(std::string requestName, std::string groupName, int fd, SSL *ssl);
     int vcreateGroup(std::string reqName, std::string groupName, int fd);
     int vprivateChat(std::string firName);
     void vgroupChat(int fd, std::string requestName, std::string groupName, std::string content, SSL *ssl);

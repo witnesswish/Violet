@@ -19,10 +19,10 @@ private:
     static std::list<int> onlineUnlogin;
 
 public:
-    void sendBordcast(int, std::string, ssl);
-    void addNewUnlogin(int fd, ssl);
+    void sendBordcast(int, std::string, SSL *ssl);
+    void addNewUnlogin(int fd, SSL *ssl);
     void removeUnlogin(int fd);
-    void privateChate(int fd, uint8_t mto, std::string &, ssl);
+    void privateChate(int fd, uint8_t mto, std::string &, SSL *ssl);
 };
 
 #endif // UNLOGINCENTER_H

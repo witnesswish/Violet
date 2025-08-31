@@ -12,14 +12,20 @@
 #define BUFFER_SIZE 0xFFFF
 #define EPOLL_SIZE 5000
 
-inline void addfd(int fd, int epfd, SSL *ssl = nullptr, bool enable_et = true)
+struct ConnectionInfo
+{
+    int fd;
+    SSL *ssl;
+};
+
+inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_et = true)
 {
     struct epoll_event ev;
     ev.data.fd = fd;
     ev.events = EPOLLIN;
-    if(ssl != nullptr)
+    if(ptr != nullptr)
     {
-        ev.data.ptr = ssl;
+        ev.data.ptr = ptr;
     }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
