@@ -8,6 +8,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <mutex>
+#include <unordered_map>
 
 #define SERVER_WELCOME "Welcome you join to the chat room! Your chat ID is: Client #%d"
 #define BUFFER_SIZE 0xFFFF
@@ -36,7 +37,7 @@ inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_e
     {
         ev.data.ptr = ptr;
         std::lock_guard<std::mutex> lock(fdSslMapMutex);
-        fdSslMap[fd] = ptr;
+        fdSslMap[fd] = ptr->ssl;
     }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;

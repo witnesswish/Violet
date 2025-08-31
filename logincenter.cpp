@@ -373,16 +373,16 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
         memcpy(neck.pass, requestName.c_str(), sizeof(neck.pass));
         std::vector<ConnectionInfo> &tmp = it->second;
-        for (int it : tmp)
+        for (auto it : tmp)
         {
-            if(it != fd)
+            if(it.fd != fd)
             {
                 {
                     std::lock_guard<std::mutex> lock(fdSslMapMutex);
-                    auto iterator = fdSslMap.find(it);
+                    auto iterator = fdSslMap.find(it.fd);
                     if (iterator != fdSslMap.end())
                     {
-                        sr.sendMsg(it, neck, content, iterator->second);
+                        sr.sendMsg(it.fd, neck, content, iterator->second);
                     }
                 }
             }
@@ -427,13 +427,13 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
             memcpy(neck.name, tmpname.c_str(), sizeof(neck.name));
             std::string tmp("violet");
             sr.sendMsg(j->fd, neck, tmp, j->ssl);
-            std::cout<< "send offline msg on offliehandle for: " << *j <<std::endl;
+            std::cout<< "send offline msg on offliehandle for: " << j->fd <<std::endl;
             auto refedHand = onlineUserFriend.find(j->fd);
             if(refedHand != onlineUserFriend.end())
             {
                 std::list<ConnectionInfo> &refedList = refedHand->second;
                 std::cout<< "refedList size: " << refedList.size() <<std::endl;
-                refedList.remove(*j);
+                refedList.remove_if([fd](const ConnectionInfo &c){return  c.fd == fd;});
                 std::cout<< "refedList size: " << refedList.size() <<std::endl;
             }
         }
@@ -474,7 +474,7 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
             {
                 std::cout<< "offline found vit: " << vit->first <<std::endl;
                 std::vector<ConnectionInfo> &tmpValue = vit->second;
-                tmpValue.erase(tmpValue);
+                tmpValue.erase(std::remove_if(tmpValue.begin(), tmpValue.end(),[fd](const ConnectionInfo &c){return c.fd == fd;}));
             }
         }
     }
@@ -618,11 +618,11 @@ void LoginCenter::updateOnlineGUMap(const std::string &key, int value)
     {
         {
             std::lock_guard<std::mutex> lock(fdSslMapMutex);
-            auto iterator = fdSslMap.find(std::stoi(it));
+            auto iterator = fdSslMap.find(value);
             if (iterator != fdSslMap.end())
             {
                 ConnectionInfo conInfo;
-                conInfo.fd = std::stoi(it);
+                conInfo.fd = (value);
                 conInfo.ssl = iterator->second;
                 std::vector<ConnectionInfo> &newValue = it->second;
                 newValue.push_back(conInfo);
@@ -634,13 +634,13 @@ void LoginCenter::updateOnlineGUMap(const std::string &key, int value)
     {
         {
             std::lock_guard<std::mutex> lock(fdSslMapMutex);
-            auto iterator = fdSslMap.find(std::stoi(it));
+            auto iterator = fdSslMap.find(value);
             if (iterator != fdSslMap.end())
             {
                 ConnectionInfo conInfo;
-                conInfo.fd = std::stoi(it);
+                conInfo.fd = value;
                 conInfo.ssl = iterator->second;
-                std::set<ConnectionInfo> newSet = {conInfo};
+                std::vector<ConnectionInfo> newSet = {conInfo};
                 onlineGUMap[key] = newSet;
             }
         }
