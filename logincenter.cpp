@@ -125,6 +125,7 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
             //返回好友列表，同时根据名字查询fd，再根据fd查询ssl，然后通过ssl对所有在线好友广播上线，在线好友会回复服务器的广播，提示自己确实在线
             u.friends.push_back(std::string(irow.at("username").c_str()));
             auto ret= redis.execute("HGET %s fd", irow.at("username").c_str());
+            std::cout<< "get online friName from redis: " << irow.at("username") <<std::endl;
             if(ret != std::nullopt)
             {
                 for(auto it : ret.value())
@@ -142,10 +143,10 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                             ConnectionInfo conInfo;
                             conInfo.fd = std::stoi(it);
                             conInfo.ssl = iterator->second;
-                            onlineUserFriend[fd].push_back(conInfo);
+                            onlineUserFriend[fd] = conInfo;
+                            std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << iterator->second << "--" << onlineUserFriend[fd].size() <<std::endl;
                         }
                     }
-                    std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << onlineUserFriend[fd].size() <<std::endl;
                 }
             }
             //std::cout << irow.at("username") << std::endl;

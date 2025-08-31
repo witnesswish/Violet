@@ -322,6 +322,16 @@ void Server::startServer()
         for (int i = 0; i < epoll_events_count; ++i)
         {
             int fd = events[i].data.fd;
+            auto ptry = events[i].data.ptr;
+            if(ptry != nullptr)
+            {
+                ConnectionInfo *ptrz = (ConnectionInfo *)ptry;
+                std::cout<< "ptr value: fd: " << ptrz->fd <<std::endl;
+            }
+            else
+            {
+                std::cout<< "read nullptr from ptrz" <<std::endl;
+            }
             SSL *fssl = nullptr;
             std::cout<< "on  server for lop ..." << fd <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
