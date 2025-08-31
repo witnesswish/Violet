@@ -17,6 +17,7 @@ add_executable(Violet main.cpp
     filecenter.h filecenter.cpp
     threadpoolcenter.h threadpoolcenter.cpp
     readme.me.md
+    common.cpp
 )
 
 include(GNUInstallDirs)

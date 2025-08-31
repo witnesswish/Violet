@@ -11,8 +11,8 @@
  * 2. 在用户登录的时候，把用户信息存到redis，用hash存 hmset 登陆者 username name fd 7 id 1，私聊的时候hget 登陆者 fd获取fd转发，如果没有找到，再想想怎么存消息，计划用redis list
  * 3. 自己维护一条list<{groupname, fd}> onlinegGMember,当用户群发消息的时候直接读条群发
  */
-std::map<std::string, std::set<int>> LoginCenter::onlineGUMap{};
-std::map<int, std::list<int>> LoginCenter::onlineUserFriend{};
+std::map<std::string, std::vector<ConnectionInfo>> LoginCenter::onlineGUMap{};
+std::map<int, std::list<ConnectionInfo>> LoginCenter::onlineUserFriend{};
 std::map<int, std::string> LoginCenter::onlineUser{};
 LoginCenter::LoginCenter()
 {
@@ -116,8 +116,8 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
     onlineUserFriend.erase(fd);
     std::vector<sql::SQLString> fparams = {username, username};
     auto friInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT u.username AS friend_name FROM user_friend f JOIN user u ON f.uid2=u.uid OR f.uid1=u.uid "
-                                 "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
-                                 fparams);
+                                                                       "WHERE f.uid1 IN (SELECT uid FROM user WHERE username=?) OR f.uid2 IN ( SELECT uid FROM user WHERE username=?);",
+                                                      fparams);
     for (const auto &irow : friInfo)
     {
         if (username != std::string(irow.at("username").c_str()))
@@ -133,8 +133,18 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
                     strcpy(neck.command, "vbul");
                     strcpy(neck.name, username.c_str());
                     std::string tmp("violet");
-                    sr.sendMsg(std::stoi(it), neck, tmp, ssl);
-                    onlineUserFriend[fd].push_back(std::stoi(it));
+                    {
+                        std::lock_guard<std::mutex> lock(fdSslMapMutex);
+                        auto iterator = fdSslMap.find(std::stoi(it));
+                        if (iterator != fdSslMap.end())
+                        {
+                            sr.sendMsg(std::stoi(it), neck, tmp, iterator->second);
+                            ConnectionInfo conInfo;
+                            conInfo.fd = std::stoi(it);
+                            conInfo.ssl = iterator->second;
+                            onlineUserFriend[fd].push_back(conInfo);
+                        }
+                    }
                     std::cout<< "boradcast login get fd from redis: " << std::stoi(it) << "--" << onlineUserFriend[fd].size() <<std::endl;
                 }
             }
@@ -142,8 +152,8 @@ int LoginCenter::vlogin(int fd, std::string username, std::string password, std:
         }
     }
     auto groupInfo = MariadbHelper::getInstance().query(std::move(conn), "SELECT DISTINCT g.gname AS group_name FROM user_group g JOIN group_member gm "
-                "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
-                params);
+                                                                         "WHERE gm.gid=g.gid AND gm.uid IN (SELECT uid FROM user WHERE username=?);",
+                                                        params);
     for (const auto &row : groupInfo)
     {
         u.groups.push_back(std::string(row.at("gname").c_str()));
@@ -177,9 +187,9 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName, SSL *s
     auto conn = MariadbHelper::getInstance().getConnection();
     std::vector<sql::SQLString> params = {requestName, requestName, friName, friName};
     auto ret = MariadbHelper::getInstance().query(std::move(conn), "SELECT * FROM user_friend uf WHERE ((uf.uid1 IN (SELECT uid FROM user WHERE username=?)) "
-                             "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))) AND ((uf.uid1 IN (SELECT uid FROM user "
-                             "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)))",
-                             params);
+                                                                   "OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?))) AND ((uf.uid1 IN (SELECT uid FROM user "
+                                                                   "WHERE username=?)) OR (uf.uid1 IN (SELECT uid FROM user WHERE username=?)))",
+                                                  params);
     std::cout<< "add f: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
@@ -206,9 +216,9 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName, SSL *s
         }
         std::vector<sql::SQLString> iparams = {requestName, friName, requestName};
         MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO user_friend (uid1, uid2, reqid) "
-                        "VALUES"
-                        " ((SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?));",
-                        iparams);
+                                                              "VALUES"
+                                                              " ((SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?), (SELECT uid FROM user WHERE username=?));",
+                                             iparams);
         auto c = redis.execute("HGET %s fd", friName.c_str());
         if(c != std::nullopt)
         {
@@ -244,8 +254,8 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd, S
     // SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) AND (uid IN (SELECT uid FROM user WHERE username=?));
     std::vector<sql::SQLString> params = {groupName, reqName};
     auto ret = MariadbHelper::getInstance().query(std::move(conn), "SELECT * FROM group_member WHERE (gid IN (SELECT gid FROM user_group WHERE gname=?)) "
-                             "AND (uid IN (SELECT uid FROM user WHERE username=?));",
-                             params);
+                                                                   "AND (uid IN (SELECT uid FROM user WHERE username=?));",
+                                                  params);
     // std::cout<< "add g query ret: " << ret.size() <<std::endl;
     if (ret.size() == 1)
     {
@@ -273,8 +283,8 @@ int LoginCenter::vaddGroup(std::string reqName, std::string groupName, int fd, S
         // std::cout<< "debug log add g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO group_member (gid, uid) VALUES "
-                                     "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
-                                     iparams);
+                                                                           "((SELECT gid FROM user_group WHERE gname=?),(SELECT uid FROM user WHERE username=?));",
+                                                          iparams);
         // std::cout<< "debug log add g insert: " << m_ret << "--" << groupName <<std::endl;
         updateOnlineGUMap(groupName, fd);
         MariadbHelper::getInstance().releaseConnection(std::move(conn));
@@ -306,7 +316,7 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName, int fd
         // std::cout<< "debug log create g insert: " << reqName << "--" << groupName <<std::endl;
         std::vector<sql::SQLString> iparams = {groupName, reqName};
         bool m_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO user_group (gname, gowner) VALUES (?, (SELECT uid FROM user WHERE username=?));",
-                                     iparams);
+                                                          iparams);
         if(!m_ret)
         {
             std::cout<< "error on create group insert" <<std::endl;
@@ -320,7 +330,7 @@ int LoginCenter::vcreateGroup(std::string reqName, std::string groupName, int fd
         }
         std::vector<sql::SQLString> xparams = {groupName, reqName};
         bool v_ret = MariadbHelper::getInstance().execute(std::move(conn), "INSERT INTO group_member (gid, uid, grole) VALUES ((SELECT gid FROM user_group WHERE gname=?), (SELECT uid FROM user WHERE username=?), 'owner');",
-                                     iparams);
+                                                          iparams);
         // std::cout<< "debug log create g insert: " << m_ret << "--" << groupName <<std::endl;
         updateOnlineGUMap(groupName, fd);
         MariadbHelper::getInstance().releaseConnection(std::move(conn));
@@ -362,12 +372,19 @@ void LoginCenter::vgroupChat(int fd, std::string requestName, std::string groupN
         strcpy(neck.command, "vgcb");
         memcpy(neck.name, groupName.c_str(), sizeof(neck.name));
         memcpy(neck.pass, requestName.c_str(), sizeof(neck.pass));
-        std::set<int> &tmp = it->second;
+        std::vector<ConnectionInfo> &tmp = it->second;
         for (int it : tmp)
         {
             if(it != fd)
             {
-                sr.sendMsg(it, neck, content, ssl);
+                {
+                    std::lock_guard<std::mutex> lock(fdSslMapMutex);
+                    auto iterator = fdSslMap.find(it);
+                    if (iterator != fdSslMap.end())
+                    {
+                        sr.sendMsg(it, neck, content, iterator->second);
+                    }
+                }
             }
         }
     }
@@ -401,7 +418,7 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
     auto ouf = onlineUserFriend.find(fd);
     if(ouf != onlineUserFriend.end())
     {
-        std::list<int> &tmplist = ouf->second;
+        std::list<ConnectionInfo> &tmplist = ouf->second;
         for(auto j=tmplist.begin(); j!=tmplist.end(); ++j)
         {
 
@@ -409,14 +426,14 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
             strcpy(neck.command, "vbol");
             memcpy(neck.name, tmpname.c_str(), sizeof(neck.name));
             std::string tmp("violet");
-            sr.sendMsg(*j, neck, tmp, ssl);
+            sr.sendMsg(j->fd, neck, tmp, j->ssl);
             std::cout<< "send offline msg on offliehandle for: " << *j <<std::endl;
-            auto refedHand = onlineUserFriend.find(*j);
+            auto refedHand = onlineUserFriend.find(j->fd);
             if(refedHand != onlineUserFriend.end())
             {
-                std::list<int> &refedList = refedHand->second;
+                std::list<ConnectionInfo> &refedList = refedHand->second;
                 std::cout<< "refedList size: " << refedList.size() <<std::endl;
-                refedList.remove(fd);
+                refedList.remove(*j);
                 std::cout<< "refedList size: " << refedList.size() <<std::endl;
             }
         }
@@ -426,7 +443,6 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
         std::cout<< "not find user fd #" << fd << " on onlineUserFriend" <<std::endl;
     }
     onlineUserFriend.erase(fd);
-    //auto git = onlineGUMap.find()
     std::string tmpgn = tmpname + "grp";
     auto ret3 = redis.execute("LLEN %s", tmpgn.c_str());
     if(ret3 == std::nullopt)
@@ -452,13 +468,13 @@ void LoginCenter::vofflineHandle(int fd, SSL *ssl)
     {
         for(auto &it : ret4.value())
         {
-            //onlineGUMap: map<string, set<int>>
+            //onlineGUMap: map<string, vector<connectinfo>>
             auto vit = onlineGUMap.find(it);
             if(vit != onlineGUMap.end())
             {
                 std::cout<< "offline found vit: " << vit->first <<std::endl;
-                std::set<int> &tmpset = vit->second;
-                tmpset.erase(fd);
+                std::vector<ConnectionInfo> &tmpValue = vit->second;
+                tmpValue.erase(tmpValue);
             }
         }
     }
@@ -489,8 +505,18 @@ void LoginCenter::vhandleVbulre(int fd, std::string requestName, std::string fri
                 strcpy(neck.command, "vbul");
                 memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
                 std::string tmp("violet");
-                sr.sendMsg(std::stoi(it), neck, tmp, ssl);
-                onlineUserFriend[fd].push_back(std::stoi(it));
+                {
+                    std::lock_guard<std::mutex> lock(fdSslMapMutex);
+                    auto iterator = fdSslMap.find(std::stoi(it));
+                    if (iterator != fdSslMap.end())
+                    {
+                        sr.sendMsg(std::stoi(it), neck, tmp, iterator->second);
+                        ConnectionInfo conInfo;
+                        conInfo.fd = std::stoi(it);
+                        conInfo.ssl = iterator->second;
+                        onlineUserFriend[fd].push_back(conInfo);
+                    }
+                }
             }
         }
     }
@@ -590,16 +616,34 @@ void LoginCenter::updateOnlineGUMap(const std::string &key, int value)
     auto it = onlineGUMap.find(key);
     if(it != onlineGUMap.end())
     {
-        std::set<int> &tmp = it->second;
-        if(tmp.find(value) == tmp.end())
         {
-            tmp.insert(value);
+            std::lock_guard<std::mutex> lock(fdSslMapMutex);
+            auto iterator = fdSslMap.find(std::stoi(it));
+            if (iterator != fdSslMap.end())
+            {
+                ConnectionInfo conInfo;
+                conInfo.fd = std::stoi(it);
+                conInfo.ssl = iterator->second;
+                std::vector<ConnectionInfo> &newValue = it->second;
+                newValue.push_back(conInfo);
+                onlineGUMap[key] = newValue;
+            }
         }
     }
     else
     {
-        std::set<int> newSet = {value};
-        onlineGUMap[key] = newSet;
+        {
+            std::lock_guard<std::mutex> lock(fdSslMapMutex);
+            auto iterator = fdSslMap.find(std::stoi(it));
+            if (iterator != fdSslMap.end())
+            {
+                ConnectionInfo conInfo;
+                conInfo.fd = std::stoi(it);
+                conInfo.ssl = iterator->second;
+                std::set<ConnectionInfo> newSet = {conInfo};
+                onlineGUMap[key] = newSet;
+            }
+        }
     }
 }
 

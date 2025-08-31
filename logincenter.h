@@ -13,6 +13,7 @@
 
 #include "protocol.h"
 #include "redishelper.h"
+#include "common.h"
 
 // 用户信息结构体
 struct User
@@ -45,13 +46,15 @@ private:
     SRHelper sr;
     RedisHelper redis;
     /**
-     * @brief onlineGUMap 群组在线用户，登录的时候加入fd，下线的时候删除fd，
-     * @brief onlineUserFriend 用户的在线好友，
+     * @brief onlineGUMap 群组的在线用户，登录的时候将ConnectionInfo结构体加入进去，下线的时候删除结构体，结构体里有fd和SSL指针
+     * @brief onlineUserFriend 用户的所有在线好友，存储SSL指针
      * 用户上线-》广播登录-》存入在线好友列表
      * 用户离线-》广播下线-》删除好友列表
+     * 很烦，加密了之后不能直接用fd了，好多结构体要改，要改用SSL*来收发数据，我要思量一下，该怎么改
+     * 在新建项目之前，要思量多一些，当然要很多经验
      */
-    static std::map<std::string, std::set<int>> onlineGUMap;
-    static std::map<int, std::list<int>> onlineUserFriend;
+    static std::map<std::string, std::vector<ConnectionInfo>> onlineGUMap;
+    static std::map<int, std::list<ConnectionInfo>> onlineUserFriend;
     static std::map<int, std::string> onlineUser;
 private:
     std::string serializeTwoVector(const std::vector<std::string> &vec1, const std::vector<std::string> &vec2);

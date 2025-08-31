@@ -7,16 +7,25 @@
 #include <unistd.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <mutex>
 
 #define SERVER_WELCOME "Welcome you join to the chat room! Your chat ID is: Client #%d"
 #define BUFFER_SIZE 0xFFFF
 #define EPOLL_SIZE 5000
 
+/**
+ * @brief The ConnectionInfo class
+ * 这个结构体是一个fd和ssl的映射
+ * 主要作用是减少之前代码的更改，能快速查询fd对应的ssl，每个用户登录的时候，都应该注册这个结构体
+ */
 struct ConnectionInfo
 {
     int fd;
     SSL *ssl;
 };
+
+extern std::unordered_map<int, SSL*> fdSslMap;
+extern std::mutex fdSslMapMutex;
 
 inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_et = true)
 {
@@ -26,6 +35,8 @@ inline void addfd(int fd, int epfd, ConnectionInfo *ptr = nullptr, bool enable_e
     if(ptr != nullptr)
     {
         ev.data.ptr = ptr;
+        std::lock_guard<std::mutex> lock(fdSslMapMutex);
+        fdSslMap[fd] = ptr;
     }
     if (enable_et)
         ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
