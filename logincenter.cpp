@@ -233,8 +233,15 @@ int LoginCenter::vaddFriend(std::string requestName, std::string friName, SSL *s
                     strcpy(neck.command, "vafed");
                     memcpy(neck.name, requestName.c_str(), sizeof(neck.name));
                     std::string tmp("violet");
-                    sr.sendMsg(std::stoi(d), neck, tmp, ssl);
-                    std::cout<< "send add fri to fri success" <<std::endl;
+                    {
+                        std::lock_guard<std::mutex> lock(fdSslMapMutex);
+                        auto iterator = fdSslMap.find(std::stoi(d));
+                        if (iterator != fdSslMap.end())
+                        {
+                            sr.sendMsg(std::stoi(d), neck, tmp, iterator->second);
+                            std::cout<< "send add fri to fri success" <<std::endl;
+                        }
+                    }
                 }
             }
         }
