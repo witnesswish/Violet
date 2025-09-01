@@ -116,6 +116,7 @@ void Server::init()
         exit(EXIT_FAILURE);
     }
     //SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);    //只能使用较新的版本
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyClientPem);    //要求客户端提供证书，设置自定义验证回调verifyClientPem
     std::cout<< "end  of init function" <<std::endl;
 }
 
@@ -325,7 +326,7 @@ void Server::startServer()
             auto ptry = events[i].data.ptr;
             if(fd<0 || fd>100)
             {
-                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                auto *ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
                 std::shared_ptr<ConnectionInfo> conn = *ptrz;
                 std::cout<< "ptr value: fd: " << conn->fd <<std::endl;
             }
@@ -337,7 +338,7 @@ void Server::startServer()
             std::cout<< "on  server for lop ..." << fd <<std::endl;
             if (events[i].events & (EPOLLERR | EPOLLHUP))
             {
-                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                auto *ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
                 std::shared_ptr<ConnectionInfo> conn = *ptrz;
                 fssl = conn->ssl;
                 if(fssl != nullptr)
@@ -349,11 +350,12 @@ void Server::startServer()
                 vofflineHandle(fd, fssl);
                 removefd(fd, epfd, fssl);
                 close(fd);
+                delete ptrz;
                 continue;
             }
             if (events[i].events & EPOLLRDHUP)
             {
-                auto* ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
+                auto *ptrz = static_cast<std::shared_ptr<ConnectionInfo>*>(events[i].data.ptr);
                 std::shared_ptr<ConnectionInfo> conn = *ptrz;
                 fssl = conn->ssl;
                 if(fssl != nullptr)
@@ -365,6 +367,7 @@ void Server::startServer()
                 vofflineHandle(fd, fssl);
                 removefd(fd, epfd, fssl);
                 close(fd);
+                delete ptrz;
                 continue;
             }
             if (fd == sock)
@@ -419,6 +422,11 @@ void Server::closeServer()
         close(epfd);
     if (sock)
         close(sock);
+    if (ctx != nullptr)
+    {
+        SSL_CTX_free(ctx);
+        ctx = nullptr;
+    }
 }
 
 void Server::vregister(int fd, std::string username, std::string password, std::string email, SSL *ssl)
@@ -713,6 +721,12 @@ void Server::vsayWelcome(int fd)
     auto last_time = std::chrono::steady_clock::now();
     while(acceptRet <= 0)
     {
+        int verifyRet = SSL_get_verify_result(sslWelcome);
+        std::cout<< "debug for say welcome ssl get verigy result: " << verifyRet <<std::endl;
+        if(verifyRet != X509_V_OK)
+        {
+            std::cerr << "Certificate verification failed: " << X509_verify_cert_error_string(verifyRet) << std::endl;
+        }
         char tmp[1024];
         int err = SSL_get_error(sslWelcome, acceptRet);
         fprintf(stderr, "SSL_accept failed with error %d\n", err);
@@ -737,7 +751,7 @@ void Server::vsayWelcome(int fd)
             return;
         }
         auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count() >= INTERVAL_MS) 
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count() >= INTERVAL_MS)
         {
             ERR_print_errors_fp(stderr);
             SSL_shutdown(sslWelcome);
@@ -762,6 +776,68 @@ void Server::vsayWelcome(int fd)
     welcome += ", enjoy yourself";
     std::cout << "welcome: " << welcome << std::endl;
     sr.sendMsg(fd, 0, welcome, sslWelcome);
+}
+
+std::string Server::calculateFingerprint(X509 *cert)
+{
+    if(!cert)
+    {
+        return "";
+    }
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digestLen;
+    if (X509_digest(cert, EVP_sha256(), digest, &digestLen) != 1)
+    {
+        std::cerr << "Failed to calculate certificate digest." << std::endl;
+        return "";
+    }
+    std::stringstream ss;
+    ss << std::hex << std::uppercase << std::setfill('0');
+    for (unsigned int i = 0; i < digestLen; ++i)
+    {
+        ss << std::setw(2) << static_cast<unsigned int>(digest[i]);
+    }
+    return ss.str();
+}
+/**
+ * @brief Server::verifyClientPem
+ * @param isPreVerifyGood
+ * @param x509_ctx
+ * @return 这里的返回值值得记录一下，后面调用SSL_get_verify_result（）获取返回值
+ * X509_V_OK = 0 表示成功
+ * 验证过程中，任何一步返回 0，整个验证就失败
+ */
+int Server::verifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx)
+{
+    if(!isPreVerifyGood)
+    {
+        std::cerr << "base ssl verification failed, you should check this section on verifyClientPem" << std::endl;
+        return 0;
+    }
+    X509 *clientCert = X509_STORE_CTX_get0_cert(x509_ctx);
+    if(!clientCert)
+    {
+        std::cerr << "No client certificate presented." << std::endl;
+        return 0;
+    }
+    std::string clientPemFinger = calculateFingerprint(clientCert);
+    if(clientPemFinger.empty())
+    {
+        std::cerr << "Failed to calculate client certificate fingerprint." << std::endl;
+        return 0;
+    }
+    std::cout << "Client certificate SHA256 fingerprint: " << clientPemFinger << std::endl;
+    std::cout << "Trusted fingerprint: " << pemFinger << std::endl;
+    if(clientPemFinger == pemFinger)
+    {
+        std::cout << "Certificate fingerprint matches. Client authenticated." << std::endl;
+        return 1;
+    }
+    else
+    {
+        std::cerr << "Certificate fingerprint DOES NOT match! Rejecting connection." << std::endl;
+        return 0;
+    }
 }
 
 void Server::vlogin(int fd, std::string username, std::string password, SSL *ssl)

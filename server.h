@@ -12,6 +12,8 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <memory>
+#include <openssl/x509.h>
+#include <openssl/evp.h>
 
 #include "protocol.h"
 #include "unlogincenter.h"
@@ -57,6 +59,7 @@ private:
     PortPoolCenter ppl;
     SSL_CTX *ctx;
     static std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
+    const std::string pemFinger = ("C2D69078B46A737D73D044BB493B9EA3734B2FD52278D25F82BF1C47704FB67D");
 
 private:
     void init();
@@ -73,6 +76,8 @@ private:
     void vuploadFile(int fd, std::string reqName, std::string friName, SSL *ssl);
     void vdownloadFile(int fd, std::string fileName, uint32_t fileSize, SSL *ssl, uint32_t chunk=0, uint32_t chunkSize=512000);
     void vsayWelcome(int fd);
+    std::string calculateFingerprint(X509 *cert);
+    int verifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx);
 };
 
 #endif // SERVER_H
