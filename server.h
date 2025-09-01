@@ -59,7 +59,7 @@ private:
     PortPoolCenter ppl;
     SSL_CTX *ctx;
     static std::unordered_map<int, UserRecvBuffer> userRecvBuffMap;
-    const std::string pemFinger = ("C2D69078B46A737D73D044BB493B9EA3734B2FD52278D25F82BF1C47704FB67D");
+    const std::string pemFinger = ("0DACF20BCCC911DBF036504172DE7AD30C14C7FE213282A9ACA263AA41E4F62D");
 
 private:
     void init();
