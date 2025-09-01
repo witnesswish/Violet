@@ -96,8 +96,15 @@ void Server::init()
     const SSL_METHOD *method = TLS_server_method();
     ctx = SSL_CTX_new(method);
     SSL_CTX_set_ex_data(ctx, 0, this);
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
     if (!ctx)
     {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if (SSL_CTX_load_verify_locations(ctx, "/home/ubuntu/Violet/cert.pem", NULL) != 1) {
+        // 处理错误
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
