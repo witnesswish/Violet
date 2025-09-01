@@ -78,6 +78,7 @@ private:
     void vsayWelcome(int fd);
     std::string calculateFingerprint(X509 *cert);
     int verifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx);
+    static int staticVerifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx);
 };
 
 #endif // SERVER_H

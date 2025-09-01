@@ -95,6 +95,7 @@ void Server::init()
     ERR_load_crypto_strings();
     const SSL_METHOD *method = TLS_server_method();
     ctx = SSL_CTX_new(method);
+    SSL_CTX_set_ex_data(ctx, 0, this);
     if (!ctx)
     {
         ERR_print_errors_fp(stderr);
@@ -116,7 +117,7 @@ void Server::init()
         exit(EXIT_FAILURE);
     }
     //SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);    //只能使用较新的版本
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verifyClientPem);    //要求客户端提供证书，设置自定义验证回调verifyClientPem
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, &Server::staticVerifyClientPem);    //要求客户端提供证书，设置自定义验证回调verifyClientPem
     std::cout<< "end  of init function" <<std::endl;
 }
 
@@ -838,6 +839,18 @@ int Server::verifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx)
         std::cerr << "Certificate fingerprint DOES NOT match! Rejecting connection." << std::endl;
         return 0;
     }
+}
+
+int Server::staticVerifyClientPem(int isPreVerifyGood, X509_STORE_CTX *x509_ctx)
+{
+    SSL* ssl = (SSL*)X509_STORE_CTX_get_ex_data(x509_ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
+    SSL_CTX* ctx = SSL_get_SSL_CTX(ssl);
+    Server* self = (Server*)SSL_CTX_get_ex_data(ctx, 0);
+    if (self)
+    {
+        return self->verifyClientPem(isPreVerifyGood, x509_ctx);
+    }
+    return 0;
 }
 
 void Server::vlogin(int fd, std::string username, std::string password, SSL *ssl)
